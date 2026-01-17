@@ -37,7 +37,7 @@ Formulas are expressions that reference data fields and perform calculations. Th
 | Operator | Description |
 |----------|-------------|
 | `&&` | Logical AND |
-| `||` | Logical OR |
+| `\|\|` | Logical OR |
 | `!` | Logical NOT |
 
 ### Other Syntax

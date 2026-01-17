@@ -36,7 +36,7 @@ ${formulaSpec.syntax.comparisonOperators.map((o) => `| \`${o.operator}\` | ${o.d
 
 | Operator | Description |
 |----------|-------------|
-${formulaSpec.syntax.logicalOperators.map((o) => `| \`${o.operator}\` | ${o.description} |`).join('\n')}
+${formulaSpec.syntax.logicalOperators.map((o) => `| \`${o.operator.replace(/\|/g, '\\|')}\` | ${o.description} |`).join('\n')}
 
 ### Other Syntax
 
