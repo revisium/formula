@@ -45,6 +45,33 @@ evaluate('items[0].price + items[1].price', { items: [{ price: 10 }, { price: 20
 // Comparisons
 evaluate('price > 100', { price: 150 });
 // true
+
+// Type inference
+import { inferFormulaType } from '@revisium/formula';
+
+inferFormulaType('price * quantity', { price: 'number', quantity: 'number' });
+// 'number'
+
+inferFormulaType('price > 100');
+// 'boolean'
+
+// Schema validation
+import { validateFormulaAgainstSchema } from '@revisium/formula';
+
+const schema = {
+  type: 'object',
+  properties: {
+    price: { type: 'number' },
+    quantity: { type: 'number' },
+    total: { type: 'number', 'x-formula': { version: 1, expression: 'price * quantity' } }
+  }
+};
+
+validateFormulaAgainstSchema('price * quantity', 'total', schema);
+// null (valid)
+
+validateFormulaAgainstSchema('price > 100', 'total', schema);
+// { field: 'total', error: "Type mismatch: formula returns 'boolean' but field expects 'number'" }
 ```
 
 ## API
@@ -56,6 +83,7 @@ evaluate('price > 100', { price: 150 });
 | `parseFormula` | Low-level parser returning AST, dependencies, features |
 | `validateSyntax` | Validate expression syntax |
 | `evaluate` | Evaluate expression with context |
+| `inferFormulaType` | Infer return type of expression |
 
 ### Expression API
 
@@ -72,11 +100,13 @@ evaluate('price > 100', { price: 150 });
 | `detectCircularDependencies` | Detect circular dependencies in graph |
 | `getTopologicalOrder` | Get evaluation order for nodes |
 
-### Schema Extraction
+### Schema Validation
 
 | Function | Description |
 |----------|-------------|
 | `extractSchemaFormulas` | Extract formulas from JSON Schema |
+| `validateFormulaAgainstSchema` | Validate single formula against schema |
+| `validateSchemaFormulas` | Validate all formulas in schema |
 
 ## Path Syntax
 

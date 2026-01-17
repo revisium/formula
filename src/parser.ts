@@ -408,4 +408,182 @@ export function evaluate(
   return fn(context);
 }
 
+/**
+ * Inferred type of a formula expression
+ */
+export type InferredType = 'number' | 'boolean' | 'string' | 'unknown';
+
+/**
+ * Schema field types for type inference
+ */
+export interface FieldTypes {
+  [fieldName: string]: 'number' | 'string' | 'boolean' | 'object' | 'array';
+}
+
+const ARITHMETIC_OPS = new Set(['+', '-', '*', '/', '%']);
+const COMPARISON_OPS = new Set([
+  '<',
+  '>',
+  '<=',
+  '>=',
+  '==',
+  '!=',
+  '===',
+  '!==',
+]);
+const LOGICAL_OPS = new Set(['&&', '||', '!', 'and', 'or', 'not']);
+const NUMERIC_FUNCTIONS = new Set([
+  'round',
+  'floor',
+  'ceil',
+  'abs',
+  'sqrt',
+  'pow',
+  'min',
+  'max',
+  'log',
+  'log10',
+  'exp',
+  'sign',
+  'sum',
+  'avg',
+  'count',
+  'tonumber',
+]);
+const STRING_FUNCTIONS = new Set([
+  'concat',
+  'upper',
+  'lower',
+  'trim',
+  'left',
+  'right',
+  'replace',
+  'tostring',
+  'join',
+]);
+const BOOLEAN_FUNCTIONS = new Set([
+  'contains',
+  'startswith',
+  'endswith',
+  'isnull',
+  'toboolean',
+  'includes',
+]);
+
+function getFieldType(path: string, fieldTypes: FieldTypes): InferredType {
+  const rootField = path.split('.')[0]?.split('[')[0] || path;
+  const schemaType = fieldTypes[rootField];
+  if (schemaType === 'number') return 'number';
+  if (schemaType === 'string') return 'string';
+  if (schemaType === 'boolean') return 'boolean';
+  return 'unknown';
+}
+
+function inferPrimitiveType(
+  node: ASTNode,
+  fieldTypes: FieldTypes,
+): InferredType | null {
+  if (typeof node === 'number') return 'number';
+  if (typeof node === 'boolean') return 'boolean';
+  if (typeof node === 'string') return getFieldType(node, fieldTypes);
+  if (node === null) return 'unknown';
+  return null;
+}
+
+function inferLiteralArrayType(node: unknown[]): InferredType {
+  const val = node[1];
+  if (typeof val === 'number') return 'number';
+  if (typeof val === 'string') return 'string';
+  if (typeof val === 'boolean') return 'boolean';
+  return 'unknown';
+}
+
+function inferOperatorType(
+  op: string,
+  argsLength: number,
+): InferredType | null {
+  if (ARITHMETIC_OPS.has(op)) return 'number';
+  if (COMPARISON_OPS.has(op)) return 'boolean';
+  if (LOGICAL_OPS.has(op)) return 'boolean';
+  if (op === '-' && argsLength === 1) return 'number';
+  return null;
+}
+
+function inferPropertyAccessType(
+  node: ASTNode,
+  fieldTypes: FieldTypes,
+): InferredType {
+  const path = buildDotPath(node);
+  return path ? getFieldType(path, fieldTypes) : 'unknown';
+}
+
+function inferFunctionCallType(funcName: ASTNode): InferredType {
+  if (typeof funcName !== 'string') return 'unknown';
+  const lowerName = funcName.toLowerCase();
+  if (NUMERIC_FUNCTIONS.has(lowerName)) return 'number';
+  if (STRING_FUNCTIONS.has(lowerName)) return 'string';
+  if (BOOLEAN_FUNCTIONS.has(lowerName)) return 'boolean';
+  return 'unknown';
+}
+
+function inferTypeFromNode(
+  node: ASTNode,
+  fieldTypes: FieldTypes,
+): InferredType {
+  const primitiveType = inferPrimitiveType(node, fieldTypes);
+  if (primitiveType !== null) return primitiveType;
+
+  if (!Array.isArray(node)) return 'unknown';
+  if (isLiteralArray(node)) return inferLiteralArrayType(node);
+
+  const [op, ...args] = node;
+
+  const operatorType = inferOperatorType(op, args.length);
+  if (operatorType !== null) return operatorType;
+
+  if (op === '.' || op === '[]') {
+    return inferPropertyAccessType(node, fieldTypes);
+  }
+
+  if (op === '()') {
+    return inferFunctionCallType(args[0] as ASTNode);
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Infer the return type of a formula expression
+ *
+ * @param expression - Formula expression string
+ * @param fieldTypes - Map of field names to their types from schema
+ * @returns Inferred type of the expression result
+ *
+ * @example
+ * inferFormulaType('price * quantity', { price: 'number', quantity: 'number' })
+ * // 'number'
+ *
+ * inferFormulaType('price > 100', { price: 'number' })
+ * // 'boolean'
+ *
+ * inferFormulaType('name', { name: 'string' })
+ * // 'string'
+ */
+export function inferFormulaType(
+  expression: string,
+  fieldTypes: FieldTypes = {},
+): InferredType {
+  const trimmed = expression.trim();
+  if (!trimmed) {
+    return 'unknown';
+  }
+
+  try {
+    const ast = parse(trimmed) as ASTNode;
+    return inferTypeFromNode(ast, fieldTypes);
+  } catch {
+    return 'unknown';
+  }
+}
+
 export { parse, compile } from 'subscript';

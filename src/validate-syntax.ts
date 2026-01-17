@@ -1,10 +1,8 @@
 import { validateSyntax } from './parser';
 
-export interface SyntaxValidationResult {
-  isValid: boolean;
-  error?: string;
-  position?: number;
-}
+export type SyntaxValidationResult =
+  | { isValid: true }
+  | { isValid: false; error: string; position?: number };
 
 /**
  * Validate formula expression syntax

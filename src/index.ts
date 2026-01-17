@@ -1,8 +1,13 @@
 export * from './types';
 
 // Parser API
-export { parseFormula, validateSyntax, evaluate } from './parser';
-export type { ASTNode, ParseResult } from './parser';
+export {
+  parseFormula,
+  validateSyntax,
+  evaluate,
+  inferFormulaType,
+} from './parser';
+export type { ASTNode, ParseResult, InferredType, FieldTypes } from './parser';
 
 // Expression API (high-level)
 export { parseExpression } from './parse-formula';
@@ -25,3 +30,13 @@ export type {
 // Schema extraction
 export { extractSchemaFormulas } from './extract-schema';
 export type { JsonSchema, ExtractedFormula } from './extract-schema';
+
+// Schema validation
+export {
+  validateFormulaAgainstSchema,
+  validateSchemaFormulas,
+} from './validate-schema';
+export type {
+  FormulaValidationError,
+  SchemaValidationResult,
+} from './validate-schema';
