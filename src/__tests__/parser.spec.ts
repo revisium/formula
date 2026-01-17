@@ -651,6 +651,14 @@ describe('inferFormulaType', () => {
       expect(inferFormulaType('unknown')).toBe('unknown');
       expect(inferFormulaType('unknown', {})).toBe('unknown');
     });
+
+    it('should return unknown for + with unknown operands', () => {
+      expect(inferFormulaType('a + b')).toBe('unknown');
+      expect(inferFormulaType('a + 1')).toBe('unknown');
+      expect(inferFormulaType('1 + a')).toBe('unknown');
+      const fieldTypes = { price: 'number' as const };
+      expect(inferFormulaType('price + unknown', fieldTypes)).toBe('unknown');
+    });
   });
 
   describe('function calls', () => {

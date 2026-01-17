@@ -283,7 +283,6 @@ Formula fields use the following structure:
 - readOnly: true is REQUIRED for fields with x-formula
 - Expression must reference existing fields in the same table
 - Circular dependencies are not allowed (a references b, b references a)
-- Referenced fields must exist before the formula field in schema order
 
 ## Expression Examples
 

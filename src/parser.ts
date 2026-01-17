@@ -581,6 +581,8 @@ function inferOperatorType(
   if (op === '+' && argTypes) {
     const hasString = argTypes.some((t) => t === 'string');
     if (hasString) return 'string';
+    const hasUnknown = argTypes.some((t) => t === 'unknown');
+    if (hasUnknown) return 'unknown';
     return 'number';
   }
   if (ARITHMETIC_OPS.has(op)) return 'number';
