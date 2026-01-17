@@ -1,5 +1,15 @@
 import { FormulaFeature, FormulaMinorVersion, FormulaAnalysis } from './types';
 
+const NESTED_PATH_REGEX = /[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_]/;
+const ARRAY_INDEX_REGEX = /\[-?\d+]/;
+const ROOT_PATH_REGEX = /\/[a-zA-Z_]/;
+const CONTEXT_TOKEN_REGEX = /@(?:prev|next|current)\b|#(?:index|first|last|length)\b/;
+const ARRAY_FUNCTION_REGEX = /\b(?:sum|avg|count|first|last|join|filter|map|includes)\s*\(/i;
+const IDENTIFIER_REGEX = new RegExp(
+  String.raw`(?:^|[^.@#/\w])([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*(?:\[-?\d+]|\[\*])?(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)`,
+  'g',
+);
+
 /**
  * Detect formula features and minimum required version from expression
  *
@@ -16,33 +26,31 @@ import { FormulaFeature, FormulaMinorVersion, FormulaAnalysis } from './types';
 export function detectVersion(expression: string): FormulaAnalysis {
   const features: FormulaFeature[] = [];
 
-  if (expression.includes('.') && /[a-zA-Z_]\w*\.[a-zA-Z_]/.test(expression)) {
+  if (expression.includes('.') && NESTED_PATH_REGEX.test(expression)) {
     features.push('nested_path');
   }
 
-  if (/\[\d+\]/.test(expression) || /\[-\d+\]/.test(expression)) {
+  if (ARRAY_INDEX_REGEX.test(expression)) {
     features.push('array_index');
   }
 
-  if (/\[\*\]/.test(expression)) {
+  if (expression.includes('[*]')) {
     features.push('array_wildcard');
   }
 
-  if (/\.\.\//.test(expression)) {
+  if (expression.includes('../')) {
     features.push('relative_path');
   }
 
-  if (/\/[a-zA-Z_]/.test(expression)) {
+  if (ROOT_PATH_REGEX.test(expression)) {
     features.push('root_path');
   }
 
-  if (/@[a-zA-Z]/.test(expression) || /#[a-zA-Z]/.test(expression)) {
+  if (CONTEXT_TOKEN_REGEX.test(expression)) {
     features.push('context_token');
   }
 
-  const arrayFunctions = ['sum', 'avg', 'count', 'first', 'last', 'join', 'filter', 'map', 'includes'];
-  const funcRegex = new RegExp(`\\b(${arrayFunctions.join('|')})\\s*\\(`, 'i');
-  if (funcRegex.test(expression)) {
+  if (ARRAY_FUNCTION_REGEX.test(expression)) {
     features.push('array_function');
   }
 
@@ -60,10 +68,8 @@ export function detectVersion(expression: string): FormulaAnalysis {
 function extractDependencies(expression: string): string[] {
   const deps = new Set<string>();
 
-  const identifierRegex = /(?:^|[^.@#/\w])([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*(?:\[\d+\]|\[\*\]|\[-\d+\])?(?:\.[a-zA-Z_]\w*)*)/g;
-
   let match;
-  while ((match = identifierRegex.exec(expression)) !== null) {
+  while ((match = IDENTIFIER_REGEX.exec(expression)) !== null) {
     const identifier = match[1];
     if (identifier && !isKeyword(identifier)) {
       deps.add(identifier);
