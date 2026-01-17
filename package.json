@@ -87,5 +87,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "subscript": "^9.2.0"
   }
 }

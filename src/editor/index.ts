@@ -7,7 +7,12 @@
  * - Error formatting
  */
 
-export { detectVersion } from '../detect-version';
+export { parseFormula } from '../parser';
+export { parseExpression } from '../parse-formula';
+export { validateFormulaSyntax } from '../validate-syntax';
+export type { ParseResult, ASTNode } from '../parser';
+export type { ParsedExpression } from '../parse-formula';
+export type { SyntaxValidationResult } from '../validate-syntax';
 export type {
   XFormula,
   FormulaMinorVersion,
@@ -16,11 +21,4 @@ export type {
   PathSegment,
   ParsedPath,
   PathValidationResult,
-  FormulaValidationResult,
-  FormulaValidationError,
-  FormulaValidationErrorType,
-  FormulaValidationWarning,
-  FormulaValidationWarningType,
-  FormulaFieldSchema,
-  ParsedFormula,
 } from '../types';

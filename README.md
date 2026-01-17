@@ -9,6 +9,8 @@
 
 Formula expression parser and evaluator for [Revisium](https://revisium.io).
 
+[**Specification**](./SPEC.md) • [**API Reference**](#api)
+
 </div>
 
 ## Installation
@@ -20,26 +22,61 @@ npm install @revisium/formula
 ## Usage
 
 ```typescript
-import { detectVersion } from '@revisium/formula';
+import { parseExpression, evaluate } from '@revisium/formula';
 
-// Simple v1.0 formula
-const result1 = detectVersion('baseDamage * attackSpeed');
-// { minVersion: "1.0", features: [], dependencies: ["baseDamage", "attackSpeed"] }
+// Simple arithmetic
+parseExpression('price * 1.1');
+// { minVersion: "1.0", features: [], dependencies: ["price"] }
+evaluate('price * 1.1', { price: 100 });
+// 110
 
-// v1.1 formula with nested paths
-const result2 = detectVersion('stats.damage * /multiplier');
-// { minVersion: "1.1", features: ["nested_path", "root_path"], dependencies: [...] }
+// Nested object paths
+parseExpression('stats.damage * multiplier');
+// { minVersion: "1.1", features: ["nested_path"], dependencies: ["stats.damage", "multiplier"] }
+evaluate('stats.damage * multiplier', { stats: { damage: 50 }, multiplier: 2 });
+// 100
 
-// Excel-style running total
-const result3 = detectVersion('if(#first, value, @prev.runningTotal + value)');
-// { minVersion: "1.1", features: ["context_token"], dependencies: [...] }
+// Array index access
+parseExpression('items[0].price + items[1].price');
+// { minVersion: "1.1", features: ["array_index", "nested_path"], dependencies: ["items[0].price", "items[1].price"] }
+evaluate('items[0].price + items[1].price', { items: [{ price: 10 }, { price: 20 }] });
+// 30
+
+// Comparisons
+evaluate('price > 100', { price: 150 });
+// true
 ```
 
 ## API
 
+### Parser API
+
 | Function | Description |
 |----------|-------------|
-| `detectVersion` | Analyze formula and detect minimum required version |
+| `parseFormula` | Low-level parser returning AST, dependencies, features |
+| `validateSyntax` | Validate expression syntax |
+| `evaluate` | Evaluate expression with context |
+
+### Expression API
+
+| Function | Description |
+|----------|-------------|
+| `parseExpression` | Parse expression, extract dependencies and version |
+| `validateFormulaSyntax` | Validate formula expression syntax |
+
+### Graph API
+
+| Function | Description |
+|----------|-------------|
+| `buildDependencyGraph` | Build dependency graph from `Record<string, string[]>` |
+| `detectCircularDependencies` | Detect circular dependencies in graph |
+| `getTopologicalOrder` | Get evaluation order for nodes |
+
+### Schema Extraction
+
+| Function | Description |
+|----------|-------------|
+| `extractSchemaFormulas` | Extract formulas from JSON Schema |
 
 ## Path Syntax
 
@@ -49,21 +86,6 @@ const result3 = detectVersion('if(#first, value, @prev.runningTotal + value)');
 | `obj.field` | Nested object | `stats.damage` |
 | `arr[N]` | Array index | `items[0].price` |
 | `arr[-1]` | Last element | `items[-1]` |
-| `arr[*]` | Wildcard | `items[*].price` |
-| `../field` | Parent (relative) | `../quantity` |
-| `/field` | Root (absolute) | `/basePrice` |
-
-## Array Context Tokens
-
-| Token | Type | Description |
-|-------|------|-------------|
-| `#index` | number | Current array index |
-| `#length` | number | Array length |
-| `#first` | boolean | Is first element |
-| `#last` | boolean | Is last element |
-| `@prev` | object | Previous element |
-| `@next` | object | Next element |
-| `@current` | object | Current element |
 
 ## Version Detection
 
@@ -71,14 +93,7 @@ const result3 = detectVersion('if(#first, value, @prev.runningTotal + value)');
 |---------|-------------|
 | Simple refs (`field`) | 1.0 |
 | Nested paths (`a.b`) | 1.1 |
-| Arrays (`[0]`, `[*]`) | 1.1 |
-| Relative (`../`) | 1.1 |
-| Context tokens | 1.1 |
-| FK refs (`@table.field`) | 2.0 |
-
-## Specification
-
-See [Formula Specification v1.1](https://github.com/revisium/architecture/blob/master/specs/formula-v1.spec.md).
+| Array index (`[0]`, `[-1]`) | 1.1 |
 
 ## License
 
