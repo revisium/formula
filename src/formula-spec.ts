@@ -1,3 +1,11 @@
+export interface FunctionSpec {
+  name: string;
+  description: string;
+  signature: string;
+  returnType: 'string' | 'number' | 'boolean' | 'any';
+  examples: string[];
+}
+
 export interface FormulaSpec {
   version: string;
   description: string;
@@ -7,6 +15,14 @@ export interface FormulaSpec {
     comparisonOperators: { operator: string; description: string }[];
     logicalOperators: { operator: string; description: string }[];
     other: string[];
+  };
+  functions: {
+    string: FunctionSpec[];
+    numeric: FunctionSpec[];
+    boolean: FunctionSpec[];
+    array: FunctionSpec[];
+    conversion: FunctionSpec[];
+    conditional: FunctionSpec[];
   };
   features: {
     name: string;
@@ -71,8 +87,304 @@ export const formulaSpec: FormulaSpec = {
     ],
     other: [
       'Parentheses: (a + b) * c',
-      'Ternary: condition ? valueIfTrue : valueIfFalse',
       'Unary minus: -value, a + -b',
+    ],
+  },
+
+  functions: {
+    string: [
+      {
+        name: 'concat',
+        description: 'Concatenate multiple values into a single string',
+        signature: 'concat(value1, value2, ...)',
+        returnType: 'string',
+        examples: [
+          'concat(firstName, " ", lastName) // "John Doe"',
+          'concat("Price: ", price, " USD") // "Price: 100 USD"',
+        ],
+      },
+      {
+        name: 'upper',
+        description: 'Convert string to uppercase',
+        signature: 'upper(text)',
+        returnType: 'string',
+        examples: ['upper(name) // "HELLO"'],
+      },
+      {
+        name: 'lower',
+        description: 'Convert string to lowercase',
+        signature: 'lower(text)',
+        returnType: 'string',
+        examples: ['lower(name) // "hello"'],
+      },
+      {
+        name: 'trim',
+        description: 'Remove whitespace from both ends of a string',
+        signature: 'trim(text)',
+        returnType: 'string',
+        examples: ['trim(name) // "hello" from "  hello  "'],
+      },
+      {
+        name: 'left',
+        description: 'Extract characters from the beginning of a string',
+        signature: 'left(text, count)',
+        returnType: 'string',
+        examples: ['left(name, 3) // "hel" from "hello"'],
+      },
+      {
+        name: 'right',
+        description: 'Extract characters from the end of a string',
+        signature: 'right(text, count)',
+        returnType: 'string',
+        examples: ['right(name, 3) // "llo" from "hello"'],
+      },
+      {
+        name: 'replace',
+        description: 'Replace first occurrence of a substring',
+        signature: 'replace(text, search, replacement)',
+        returnType: 'string',
+        examples: ['replace(name, "o", "0") // "hell0" from "hello"'],
+      },
+      {
+        name: 'join',
+        description: 'Join array elements into a string',
+        signature: 'join(array, separator?)',
+        returnType: 'string',
+        examples: [
+          'join(tags) // "a,b,c"',
+          'join(tags, " | ") // "a | b | c"',
+        ],
+      },
+    ],
+    numeric: [
+      {
+        name: 'round',
+        description: 'Round a number to specified decimal places',
+        signature: 'round(number, decimals?)',
+        returnType: 'number',
+        examples: ['round(3.14159, 2) // 3.14', 'round(3.5) // 4'],
+      },
+      {
+        name: 'floor',
+        description: 'Round down to the nearest integer',
+        signature: 'floor(number)',
+        returnType: 'number',
+        examples: ['floor(3.7) // 3'],
+      },
+      {
+        name: 'ceil',
+        description: 'Round up to the nearest integer',
+        signature: 'ceil(number)',
+        returnType: 'number',
+        examples: ['ceil(3.2) // 4'],
+      },
+      {
+        name: 'abs',
+        description: 'Get the absolute value',
+        signature: 'abs(number)',
+        returnType: 'number',
+        examples: ['abs(-5) // 5'],
+      },
+      {
+        name: 'sqrt',
+        description: 'Calculate the square root',
+        signature: 'sqrt(number)',
+        returnType: 'number',
+        examples: ['sqrt(16) // 4'],
+      },
+      {
+        name: 'pow',
+        description: 'Raise a number to a power',
+        signature: 'pow(base, exponent)',
+        returnType: 'number',
+        examples: ['pow(2, 3) // 8'],
+      },
+      {
+        name: 'min',
+        description: 'Get the minimum of multiple values',
+        signature: 'min(value1, value2, ...)',
+        returnType: 'number',
+        examples: ['min(a, b, c) // smallest value'],
+      },
+      {
+        name: 'max',
+        description: 'Get the maximum of multiple values',
+        signature: 'max(value1, value2, ...)',
+        returnType: 'number',
+        examples: ['max(a, b, c) // largest value'],
+      },
+      {
+        name: 'log',
+        description: 'Calculate the natural logarithm',
+        signature: 'log(number)',
+        returnType: 'number',
+        examples: ['log(10) // 2.302...'],
+      },
+      {
+        name: 'log10',
+        description: 'Calculate the base-10 logarithm',
+        signature: 'log10(number)',
+        returnType: 'number',
+        examples: ['log10(100) // 2'],
+      },
+      {
+        name: 'exp',
+        description: 'Calculate e raised to a power',
+        signature: 'exp(number)',
+        returnType: 'number',
+        examples: ['exp(1) // 2.718...'],
+      },
+      {
+        name: 'sign',
+        description: 'Get the sign of a number (-1, 0, or 1)',
+        signature: 'sign(number)',
+        returnType: 'number',
+        examples: ['sign(-5) // -1', 'sign(0) // 0', 'sign(5) // 1'],
+      },
+      {
+        name: 'length',
+        description: 'Get the length of a string or array',
+        signature: 'length(value)',
+        returnType: 'number',
+        examples: ['length(name) // 5 from "hello"', 'length(items) // 3'],
+      },
+    ],
+    boolean: [
+      {
+        name: 'and',
+        description: 'Logical AND of two values',
+        signature: 'and(a, b)',
+        returnType: 'boolean',
+        examples: ['and(isActive, hasPermission) // true if both true'],
+      },
+      {
+        name: 'or',
+        description: 'Logical OR of two values',
+        signature: 'or(a, b)',
+        returnType: 'boolean',
+        examples: ['or(isAdmin, isOwner) // true if either true'],
+      },
+      {
+        name: 'not',
+        description: 'Logical NOT of a value',
+        signature: 'not(value)',
+        returnType: 'boolean',
+        examples: ['not(isDeleted) // true if false'],
+      },
+      {
+        name: 'contains',
+        description: 'Check if a string contains a substring',
+        signature: 'contains(text, search)',
+        returnType: 'boolean',
+        examples: ['contains(name, "ell") // true for "hello"'],
+      },
+      {
+        name: 'startswith',
+        description: 'Check if a string starts with a prefix',
+        signature: 'startswith(text, prefix)',
+        returnType: 'boolean',
+        examples: ['startswith(name, "hel") // true for "hello"'],
+      },
+      {
+        name: 'endswith',
+        description: 'Check if a string ends with a suffix',
+        signature: 'endswith(text, suffix)',
+        returnType: 'boolean',
+        examples: ['endswith(name, "llo") // true for "hello"'],
+      },
+      {
+        name: 'isnull',
+        description: 'Check if a value is null or undefined',
+        signature: 'isnull(value)',
+        returnType: 'boolean',
+        examples: ['isnull(optionalField) // true if null/undefined'],
+      },
+      {
+        name: 'includes',
+        description: 'Check if an array contains a value',
+        signature: 'includes(array, value)',
+        returnType: 'boolean',
+        examples: ['includes(tags, "featured") // true if array contains value'],
+      },
+    ],
+    array: [
+      {
+        name: 'sum',
+        description: 'Calculate the sum of array elements',
+        signature: 'sum(array)',
+        returnType: 'number',
+        examples: ['sum(prices) // total of all prices'],
+      },
+      {
+        name: 'avg',
+        description: 'Calculate the average of array elements',
+        signature: 'avg(array)',
+        returnType: 'number',
+        examples: ['avg(scores) // average score'],
+      },
+      {
+        name: 'count',
+        description: 'Get the number of elements in an array',
+        signature: 'count(array)',
+        returnType: 'number',
+        examples: ['count(items) // number of items'],
+      },
+      {
+        name: 'first',
+        description: 'Get the first element of an array',
+        signature: 'first(array)',
+        returnType: 'any',
+        examples: ['first(items) // first item'],
+      },
+      {
+        name: 'last',
+        description: 'Get the last element of an array',
+        signature: 'last(array)',
+        returnType: 'any',
+        examples: ['last(items) // last item'],
+      },
+    ],
+    conversion: [
+      {
+        name: 'tostring',
+        description: 'Convert a value to string',
+        signature: 'tostring(value)',
+        returnType: 'string',
+        examples: ['tostring(42) // "42"'],
+      },
+      {
+        name: 'tonumber',
+        description: 'Convert a value to number',
+        signature: 'tonumber(value)',
+        returnType: 'number',
+        examples: ['tonumber("42") // 42'],
+      },
+      {
+        name: 'toboolean',
+        description: 'Convert a value to boolean',
+        signature: 'toboolean(value)',
+        returnType: 'boolean',
+        examples: ['toboolean(1) // true', 'toboolean(0) // false'],
+      },
+    ],
+    conditional: [
+      {
+        name: 'if',
+        description: 'Return one of two values based on a condition',
+        signature: 'if(condition, valueIfTrue, valueIfFalse)',
+        returnType: 'any',
+        examples: [
+          'if(stock > 0, "Available", "Out of Stock")',
+          'if(price > 100, price * 0.9, price)',
+        ],
+      },
+      {
+        name: 'coalesce',
+        description: 'Return the first non-null value',
+        signature: 'coalesce(value1, value2, ...)',
+        returnType: 'any',
+        examples: ['coalesce(nickname, name, "Anonymous")'],
+      },
     ],
   },
 
@@ -152,7 +464,7 @@ export const formulaSpec: FormulaSpec = {
       result: 'boolean',
     },
     {
-      expression: 'stock > 0 ? "Available" : "Out of Stock"',
+      expression: 'if(stock > 0, "Available", "Out of Stock")',
       description: 'Conditional text based on stock',
       result: 'string',
     },
