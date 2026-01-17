@@ -220,11 +220,12 @@ evaluate('a + b * c', { a: 1, b: 2, c: 3 })
   ],
 
   schemaUsage: {
-    structure: '{ "x-formula": { "version": 1, "expression": "..." } }',
+    structure:
+      '{ "x-formula": { "version": 1, "expression": "..." }, "readOnly": true }',
     fieldTypes: ['string', 'number', 'boolean'],
     rules: [
       'Add x-formula to string, number, or boolean field schema',
-      'Set readOnly: true for computed fields (recommended)',
+      'readOnly: true is REQUIRED for fields with x-formula',
       'Expression must reference existing fields in the same table',
       'Circular dependencies are not allowed (a references b, b references a)',
       'Referenced fields must exist before the formula field in schema order',
