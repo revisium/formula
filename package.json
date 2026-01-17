@@ -1,6 +1,6 @@
 {
   "name": "@revisium/formula",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Formula expression parser and evaluator for Revisium",
   "keywords": [
     "formula",
@@ -37,6 +37,16 @@
         "types": "./dist/editor/index.d.cts",
         "default": "./dist/editor/index.cjs"
       }
+    },
+    "./spec": {
+      "import": {
+        "types": "./dist/spec.d.ts",
+        "default": "./dist/spec.js"
+      },
+      "require": {
+        "types": "./dist/spec.d.cts",
+        "default": "./dist/spec.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
@@ -46,6 +56,9 @@
     "*": {
       "editor": [
         "./dist/editor/index.d.ts"
+      ],
+      "spec": [
+        "./dist/spec.d.ts"
       ]
     }
   },
@@ -53,6 +66,7 @@
     "dist"
   ],
   "scripts": {
+    "generate:spec": "npx tsx scripts/generate-spec-md.ts",
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
@@ -63,7 +77,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "tsc": "tsc --noEmit",
-    "prepublishOnly": "npm run build && npm run tsc"
+    "prepublishOnly": "npm run generate:spec && npm run build && npm run tsc"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

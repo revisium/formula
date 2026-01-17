@@ -1,3 +1,6 @@
+<!-- AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY -->
+<!-- Edit src/spec.ts and run: npm run generate:spec -->
+
 # Formula Specification v1.1
 
 This document describes the formula syntax and features supported by `@revisium/formula`.
@@ -20,16 +23,17 @@ quantity
 baseDamage
 ```
 
-**Dependencies extracted:** `["price"]`, `["quantity"]`, `["baseDamage"]`
+**Dependencies extracted:** ["price"], ["quantity"], ["baseDamage"]
 
 #### Arithmetic Operators
 
 | Operator | Description |
 |----------|-------------|
-| `+` | Addition |
+| `+` | Addition or string concatenation |
 | `-` | Subtraction |
 | `*` | Multiplication |
 | `/` | Division |
+| `%` | Modulo (remainder) |
 
 ```
 price * 1.1
@@ -41,12 +45,12 @@ quantity * price
 
 | Operator | Description |
 |----------|-------------|
+| `==` | Equal |
+| `!=` | Not equal |
 | `>` | Greater than |
 | `<` | Less than |
 | `>=` | Greater or equal |
 | `<=` | Less or equal |
-| `==` | Equal |
-| `!=` | Not equal |
 
 ```
 price > 100
@@ -85,26 +89,25 @@ item.metadata.category
 ```
 
 **Feature:** `nested_path`
-**Dependencies:** Full path is extracted (e.g., `["stats.damage"]`)
+**Dependencies:** Full path is extracted (e.g., ["stats.damage"])
 
 #### Array Index Access
 
-Access array elements by numeric index.
+Access array elements by numeric index. Negative indices access from the end.
 
 ```
 items[0].price
 inventory[1].quantity
-matrix[0][1]
 ```
 
 Negative indices access from the end:
 ```
-items[-1].name    // last element
-items[-2].price   // second to last
+items[-1].name  // last element
+items[-2].price // second to last
 ```
 
 **Feature:** `array_index`
-**Dependencies:** `["items[0].price"]`, `["items[-1].name"]`
+**Dependencies:** ["items[0].price"], ["items[-1].name"]
 
 ## Version Detection
 
@@ -113,8 +116,8 @@ The parser automatically detects the minimum required version:
 | Feature | Min Version |
 |---------|-------------|
 | Simple refs, arithmetic, comparisons | 1.0 |
-| Nested paths (`a.b`) | 1.1 |
-| Array index (`[0]`, `[-1]`) | 1.1 |
+| Nested paths (a.b) | 1.1 |
+| Array index ([0], [-1]) | 1.1 |
 
 ## Parse Result
 
@@ -161,6 +164,7 @@ parseExpression('items[0].price + items[1].price')
 //   dependencies: ["items[0].price", "items[1].price"]
 // }
 ```
+
 
 ## Evaluation
 
