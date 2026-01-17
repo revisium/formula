@@ -25,3 +25,13 @@ export type {
 // Schema extraction
 export { extractSchemaFormulas } from './extract-schema';
 export type { JsonSchema, ExtractedFormula } from './extract-schema';
+
+// Schema validation
+export {
+  validateFormulaAgainstSchema,
+  validateSchemaFormulas,
+} from './validate-schema';
+export type {
+  FormulaValidationError,
+  SchemaValidationResult,
+} from './validate-schema';
