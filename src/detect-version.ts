@@ -2,13 +2,15 @@ import { FormulaFeature, FormulaMinorVersion, FormulaAnalysis } from './types';
 
 const NESTED_PATH_REGEX = /[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_]/;
 const ARRAY_INDEX_REGEX = /\[-?\d+]/;
-const ROOT_PATH_REGEX = /\/[a-zA-Z_]/;
+const ROOT_PATH_REGEX = /(?:^|[^a-zA-Z0-9_])\/[a-zA-Z_]/;
 const CONTEXT_TOKEN_REGEX = /@(?:prev|next|current)\b|#(?:index|first|last|length)\b/;
 const ARRAY_FUNCTION_REGEX = /\b(?:sum|avg|count|first|last|join|filter|map|includes)\s*\(/i;
 const IDENTIFIER_REGEX = new RegExp(
-  String.raw`(?:^|[^.@#/\w])([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*(?:\[-?\d+]|\[\*])?(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)`,
+  String.raw`(?:^|[^.@#\w])([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*(?:\[-?\d+]|\[\*])?(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)`,
   'g',
 );
+const ROOT_PATH_DEP_REGEX = /(?:^|[^a-zA-Z0-9_])\/([a-zA-Z_][a-zA-Z0-9_]*)/g;
+const RELATIVE_PATH_DEP_REGEX = /\.\.\/([a-zA-Z_][a-zA-Z0-9_]*)/g;
 
 /**
  * Detect formula features and minimum required version from expression
@@ -68,12 +70,23 @@ export function detectVersion(expression: string): FormulaAnalysis {
 function extractDependencies(expression: string): string[] {
   const deps = new Set<string>();
 
+  IDENTIFIER_REGEX.lastIndex = 0;
   let match;
   while ((match = IDENTIFIER_REGEX.exec(expression)) !== null) {
     const identifier = match[1];
     if (identifier && !isKeyword(identifier)) {
       deps.add(identifier);
     }
+  }
+
+  ROOT_PATH_DEP_REGEX.lastIndex = 0;
+  while ((match = ROOT_PATH_DEP_REGEX.exec(expression)) !== null) {
+    deps.add('/' + match[1]);
+  }
+
+  RELATIVE_PATH_DEP_REGEX.lastIndex = 0;
+  while ((match = RELATIVE_PATH_DEP_REGEX.exec(expression)) !== null) {
+    deps.add('../' + match[1]);
   }
 
   return Array.from(deps);
@@ -83,8 +96,8 @@ const KEYWORDS = new Set([
   'true', 'false', 'null',
   'and', 'or', 'not',
   'if', 'round', 'floor', 'ceil', 'abs', 'sqrt', 'pow', 'min', 'max', 'log', 'log10', 'exp', 'sign',
-  'concat', 'upper', 'lower', 'length', 'trim', 'left', 'right', 'replace', 'contains', 'startsWith', 'endsWith',
-  'toString', 'toNumber', 'toBoolean', 'isNull', 'coalesce',
+  'concat', 'upper', 'lower', 'length', 'trim', 'left', 'right', 'replace', 'contains', 'startswith', 'endswith',
+  'tostring', 'tonumber', 'toboolean', 'isnull', 'coalesce',
   'sum', 'avg', 'count', 'first', 'last', 'join', 'filter', 'map', 'includes',
 ]);
 

@@ -99,6 +99,24 @@ describe('detectVersion', () => {
       expect(result.dependencies).not.toContain('round');
       expect(result.dependencies).toContain('price');
     });
+
+    it('should extract root path dependencies', () => {
+      const result = detectVersion('price * /taxRate');
+      expect(result.dependencies).toContain('/taxRate');
+      expect(result.dependencies).toContain('price');
+    });
+
+    it('should extract relative path dependencies', () => {
+      const result = detectVersion('../quantity * price');
+      expect(result.dependencies).toContain('../quantity');
+      expect(result.dependencies).toContain('price');
+    });
+
+    it('should not detect division as root path', () => {
+      const result = detectVersion('a / b');
+      expect(result.features).not.toContain('root_path');
+      expect(result.minVersion).toBe('1.0');
+    });
   });
 
   describe('multiple features', () => {
