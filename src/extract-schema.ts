@@ -1,7 +1,6 @@
 interface XFormulaInput {
   version: number;
   expression: string;
-  onError?: 'null' | 'default' | 'throw';
 }
 
 interface SchemaProperty {
