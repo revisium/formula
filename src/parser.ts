@@ -411,7 +411,7 @@ const BUILTIN_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
   },
   replace: (s: unknown, search: unknown, replacement: unknown) =>
     String(s).replace(String(search), String(replacement)),
-  tostring: (v: unknown) => String(v),
+  tostring: String,
   length: (s: unknown) => {
     if (Array.isArray(s)) return s.length;
     if (typeof s === 'string') return s.length;
@@ -422,14 +422,14 @@ const BUILTIN_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
   startswith: (s: unknown, search: unknown) =>
     String(s).startsWith(String(search)),
   endswith: (s: unknown, search: unknown) => String(s).endsWith(String(search)),
-  tonumber: (v: unknown) => Number(v),
-  toboolean: (v: unknown) => Boolean(v),
+  tonumber: Number,
+  toboolean: Boolean,
   isnull: (v: unknown) => v === null || v === undefined,
   coalesce: (...args: unknown[]) =>
     args.find((v) => v !== null && v !== undefined) ?? null,
   round: (n: unknown, decimals?: unknown) => {
     const num = Number(n);
-    const dec = decimals !== undefined ? Number(decimals) : 0;
+    const dec = decimals === undefined ? 0 : Number(decimals);
     const factor = 10 ** dec;
     return Math.round(num * factor) / factor;
   },
@@ -439,9 +439,9 @@ const BUILTIN_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
   sqrt: (n: unknown) => Math.sqrt(Number(n)),
   pow: (base: unknown, exp: unknown) => Math.pow(Number(base), Number(exp)),
   min: (...args: unknown[]) =>
-    args.length === 0 ? NaN : Math.min(...args.map(Number)),
+    args.length === 0 ? Number.NaN : Math.min(...args.map(Number)),
   max: (...args: unknown[]) =>
-    args.length === 0 ? NaN : Math.max(...args.map(Number)),
+    args.length === 0 ? Number.NaN : Math.max(...args.map(Number)),
   log: (n: unknown) => Math.log(Number(n)),
   log10: (n: unknown) => Math.log10(Number(n)),
   exp: (n: unknown) => Math.exp(Number(n)),
@@ -456,7 +456,7 @@ const BUILTIN_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
   first: (arr: unknown): unknown =>
     Array.isArray(arr) ? (arr[0] as unknown) : undefined,
   last: (arr: unknown): unknown =>
-    Array.isArray(arr) ? (arr[arr.length - 1] as unknown) : undefined,
+    Array.isArray(arr) ? (arr.at(-1) as unknown) : undefined,
   join: (arr: unknown, separator?: unknown) => {
     if (!Array.isArray(arr)) return '';
     if (separator === undefined) return arr.join(',');
@@ -579,10 +579,8 @@ function inferOperatorType(
   argTypes?: InferredType[],
 ): InferredType | null {
   if (op === '+' && argTypes) {
-    const hasString = argTypes.some((t) => t === 'string');
-    if (hasString) return 'string';
-    const hasUnknown = argTypes.some((t) => t === 'unknown');
-    if (hasUnknown) return 'unknown';
+    if (argTypes.includes('string')) return 'string';
+    if (argTypes.includes('unknown')) return 'unknown';
     return 'number';
   }
   if (ARITHMETIC_OPS.has(op)) return 'number';
