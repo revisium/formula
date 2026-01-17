@@ -3,7 +3,7 @@
 # @revisium/formula
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=revisium_formula&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=revisium_formula)
-[![codecov](https://codecov.io/gh/revisium/formula/graph/badge.svg)](https://codecov.io/gh/revisium/formula)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=revisium_formula&metric=coverage)](https://sonarcloud.io/summary/new_code?id=revisium_formula)
 [![GitHub License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/revisium/formula/blob/master/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/revisium/formula)](https://github.com/revisium/formula/releases)
 
