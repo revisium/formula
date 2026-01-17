@@ -220,7 +220,8 @@ evaluate('a + b * c', { a: 1, b: 2, c: 3 })
   ],
 
   schemaUsage: {
-    structure: '{ "x-formula": { "version": 1, "expression": "..." }, "readOnly": true }',
+    structure:
+      '{ "x-formula": { "version": 1, "expression": "..." }, "readOnly": true }',
     fieldTypes: ['string', 'number', 'boolean'],
     rules: [
       'Add x-formula to string, number, or boolean field schema',
