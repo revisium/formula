@@ -1,2 +1,27 @@
 export * from './types';
-export { detectVersion } from './detect-version';
+
+// Parser API
+export { parseFormula, validateSyntax, evaluate } from './parser';
+export type { ASTNode, ParseResult } from './parser';
+
+// Expression API (high-level)
+export { parseExpression } from './parse-formula';
+export type { ParsedExpression } from './parse-formula';
+export { validateFormulaSyntax } from './validate-syntax';
+export type { SyntaxValidationResult } from './validate-syntax';
+
+// Graph API (primitives)
+export {
+  buildDependencyGraph,
+  detectCircularDependencies,
+  getTopologicalOrder,
+} from './dependency-graph';
+export type {
+  DependencyGraph,
+  CircularDependencyResult,
+  TopologicalOrderResult,
+} from './dependency-graph';
+
+// Schema extraction
+export { extractSchemaFormulas } from './extract-schema';
+export type { JsonSchema, ExtractedFormula } from './extract-schema';
