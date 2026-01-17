@@ -1,5 +1,11 @@
 import { writeFileSync } from 'fs';
-import { formulaSpec } from '../src/formula-spec';
+import { formulaSpec, FunctionSpec } from '../src/formula-spec';
+
+function formatFunctionTable(functions: FunctionSpec[]): string {
+  return `| Function | Description | Signature | Returns |
+|----------|-------------|-----------|---------|
+${functions.map((f) => `| \`${f.name}\` | ${f.description} | \`${f.signature}\` | ${f.returnType} |`).join('\n')}`;
+}
 
 const md = `<!-- AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY -->
 <!-- Edit src/formula-spec.ts and run: npm run generate:spec -->
@@ -11,6 +17,60 @@ This document describes the formula syntax and features supported by \`@revisium
 ## Syntax Overview
 
 Formulas are expressions that reference data fields and perform calculations. The parser analyzes formulas to extract dependencies and detect which features are used.
+
+## Operators
+
+### Arithmetic Operators
+
+| Operator | Description |
+|----------|-------------|
+${formulaSpec.syntax.arithmeticOperators.map((o) => `| \`${o.operator}\` | ${o.description} |`).join('\n')}
+
+### Comparison Operators
+
+| Operator | Description |
+|----------|-------------|
+${formulaSpec.syntax.comparisonOperators.map((o) => `| \`${o.operator}\` | ${o.description} |`).join('\n')}
+
+### Logical Operators
+
+| Operator | Description |
+|----------|-------------|
+${formulaSpec.syntax.logicalOperators.map((o) => `| \`${o.operator}\` | ${o.description} |`).join('\n')}
+
+### Other Syntax
+
+${formulaSpec.syntax.other.map((o) => `- ${o}`).join('\n')}
+
+## Built-in Functions
+
+### String Functions
+
+${formatFunctionTable(formulaSpec.functions.string)}
+
+### Numeric Functions
+
+${formatFunctionTable(formulaSpec.functions.numeric)}
+
+### Boolean Functions
+
+${formatFunctionTable(formulaSpec.functions.boolean)}
+
+### Array Functions
+
+${formatFunctionTable(formulaSpec.functions.array)}
+
+### Conversion Functions
+
+${formatFunctionTable(formulaSpec.functions.conversion)}
+
+### Conditional Functions
+
+${formatFunctionTable(formulaSpec.functions.conditional)}
+
+## Field References
+
+${formulaSpec.syntax.fieldReferences.map((r) => `- ${r}`).join('\n')}
 
 ## Supported Features
 
@@ -26,40 +86,16 @@ ${formulaSpec.features[0].examples.join('\n')}
 
 **Dependencies extracted:** ${formulaSpec.features[0].dependenciesExtracted?.join(', ')}
 
-#### Arithmetic Operators
-
-| Operator | Description |
-|----------|-------------|
-${formulaSpec.syntax.arithmeticOperators.map((o) => `| \`${o.operator}\` | ${o.description} |`).join('\n')}
+#### Arithmetic Operations
 
 \`\`\`
 ${formulaSpec.features[1].examples.join('\n')}
 \`\`\`
 
-#### Comparison Operators
-
-| Operator | Description |
-|----------|-------------|
-${formulaSpec.syntax.comparisonOperators.map((o) => `| \`${o.operator}\` | ${o.description} |`).join('\n')}
+#### Comparisons
 
 \`\`\`
 ${formulaSpec.features[2].examples.join('\n')}
-\`\`\`
-
-#### Unary Minus
-
-\`\`\`
--x
-a + -b
-\`\`\`
-
-#### Parentheses
-
-Group expressions for precedence control.
-
-\`\`\`
-(a + b) * c
-price * (1 + taxRate)
 \`\`\`
 
 ### v1.1 Features
@@ -107,7 +143,7 @@ ${formulaSpec.versionDetection.map((v) => `| ${v.feature} | ${v.minVersion} |`).
 ${formulaSpec.parseResult.interface}
 \`\`\`
 
-## Examples
+## API Examples
 
 ${formulaSpec.apiExamples
   .filter((e) => e.name !== 'Evaluate expressions')
@@ -128,6 +164,25 @@ The \`evaluate\` function executes a formula with a given context:
 \`\`\`typescript
 ${formulaSpec.apiExamples.find((e) => e.name === 'Evaluate expressions')?.code}
 \`\`\`
+
+## Schema Usage
+
+Formula fields use the following structure:
+
+\`\`\`json
+${formulaSpec.schemaUsage.structure}
+\`\`\`
+
+**Supported field types:** ${formulaSpec.schemaUsage.fieldTypes.join(', ')}
+
+**Rules:**
+${formulaSpec.schemaUsage.rules.map((r) => `- ${r}`).join('\n')}
+
+## Expression Examples
+
+| Expression | Description | Result Type |
+|------------|-------------|-------------|
+${formulaSpec.examples.map((e) => `| \`${e.expression}\` | ${e.description} | ${e.result} |`).join('\n')}
 `;
 
 writeFileSync('SPEC.md', md);

@@ -226,6 +226,16 @@ describe('validateSyntax', () => {
 });
 
 describe('evaluate', () => {
+  describe('security', () => {
+    it('should not allow context to override built-in functions', () => {
+      const maliciousContext = {
+        upper: () => 'malicious',
+        name: 'hello',
+      };
+      expect(evaluate('upper(name)', maliciousContext)).toBe('HELLO');
+    });
+  });
+
   describe('arithmetic', () => {
     it('should evaluate simple arithmetic', () => {
       expect(evaluate('2 + 3', {})).toBe(5);
@@ -293,16 +303,284 @@ describe('evaluate', () => {
       expect(evaluate('x != 10', { x: 5 })).toBe(true);
     });
   });
+
+  describe('string concatenation', () => {
+    it('should concatenate strings with + operator', () => {
+      expect(evaluate('a + " " + b', { a: 'John', b: 'Doe' })).toBe('John Doe');
+    });
+
+    it('should concatenate string with number', () => {
+      expect(evaluate('name + age', { name: 'Age: ', age: 25 })).toBe(
+        'Age: 25',
+      );
+    });
+
+    it('should concatenate string literals', () => {
+      expect(evaluate('"Hello" + " " + "World"', {})).toBe('Hello World');
+    });
+  });
+
+  describe('concat function', () => {
+    it('should concatenate multiple arguments', () => {
+      expect(evaluate('concat(a, " ", b)', { a: 'John', b: 'Doe' })).toBe(
+        'John Doe',
+      );
+    });
+
+    it('should concatenate with string literals', () => {
+      expect(evaluate('concat("Hello", " ", name)', { name: 'World' })).toBe(
+        'Hello World',
+      );
+    });
+
+    it('should handle numbers in concat', () => {
+      expect(
+        evaluate('concat(name, ": ", age)', { name: 'Age', age: 25 }),
+      ).toBe('Age: 25');
+    });
+
+    it('should handle many arguments', () => {
+      expect(
+        evaluate('concat(a, b, c, d)', { a: '1', b: '2', c: '3', d: '4' }),
+      ).toBe('1234');
+    });
+  });
+
+  describe('string functions', () => {
+    it('should evaluate upper()', () => {
+      expect(evaluate('upper(name)', { name: 'hello' })).toBe('HELLO');
+    });
+
+    it('should evaluate lower()', () => {
+      expect(evaluate('lower(name)', { name: 'HELLO' })).toBe('hello');
+    });
+
+    it('should evaluate trim()', () => {
+      expect(evaluate('trim(name)', { name: '  hello  ' })).toBe('hello');
+    });
+
+    it('should evaluate left()', () => {
+      expect(evaluate('left(name, 3)', { name: 'hello' })).toBe('hel');
+      expect(evaluate('left(name, 0)', { name: 'hello' })).toBe('');
+      expect(evaluate('left(name, -1)', { name: 'hello' })).toBe('');
+      expect(evaluate('left(name, 10)', { name: 'hello' })).toBe('hello');
+    });
+
+    it('should evaluate right()', () => {
+      expect(evaluate('right(name, 3)', { name: 'hello' })).toBe('llo');
+      expect(evaluate('right(name, 0)', { name: 'hello' })).toBe('');
+      expect(evaluate('right(name, -1)', { name: 'hello' })).toBe('');
+      expect(evaluate('right(name, 10)', { name: 'hello' })).toBe('hello');
+    });
+
+    it('should evaluate replace()', () => {
+      expect(evaluate('replace(name, "o", "0")', { name: 'hello' })).toBe(
+        'hell0',
+      );
+    });
+
+    it('should evaluate contains()', () => {
+      expect(evaluate('contains(name, "ell")', { name: 'hello' })).toBe(true);
+      expect(evaluate('contains(name, "xyz")', { name: 'hello' })).toBe(false);
+    });
+
+    it('should evaluate startswith()', () => {
+      expect(evaluate('startswith(name, "hel")', { name: 'hello' })).toBe(true);
+      expect(evaluate('startswith(name, "xyz")', { name: 'hello' })).toBe(
+        false,
+      );
+    });
+
+    it('should evaluate endswith()', () => {
+      expect(evaluate('endswith(name, "llo")', { name: 'hello' })).toBe(true);
+      expect(evaluate('endswith(name, "xyz")', { name: 'hello' })).toBe(false);
+    });
+
+    it('should evaluate tostring()', () => {
+      expect(evaluate('tostring(num)', { num: 42 })).toBe('42');
+    });
+
+    it('should evaluate length() for strings', () => {
+      expect(evaluate('length(name)', { name: 'hello' })).toBe(5);
+    });
+
+    it('should evaluate length() for arrays', () => {
+      expect(evaluate('length(items)', { items: [1, 2, 3] })).toBe(3);
+    });
+
+    it('should evaluate length() for objects', () => {
+      expect(evaluate('length(obj)', { obj: { a: 1, b: 2 } })).toBe(2);
+      expect(evaluate('length(obj)', { obj: {} })).toBe(0);
+    });
+
+    it('should evaluate join()', () => {
+      expect(evaluate('join(tags)', { tags: ['a', 'b', 'c'] })).toBe('a,b,c');
+      expect(evaluate('join(tags, " | ")', { tags: ['a', 'b', 'c'] })).toBe(
+        'a | b | c',
+      );
+    });
+  });
+
+  describe('numeric functions', () => {
+    it('should evaluate round()', () => {
+      expect(evaluate('round(3.14159, 2)', {})).toBe(3.14);
+      expect(evaluate('round(3.5)', {})).toBe(4);
+      expect(evaluate('round(3.4)', {})).toBe(3);
+    });
+
+    it('should evaluate floor()', () => {
+      expect(evaluate('floor(3.7)', {})).toBe(3);
+      expect(evaluate('floor(-3.7)', {})).toBe(-4);
+    });
+
+    it('should evaluate ceil()', () => {
+      expect(evaluate('ceil(3.2)', {})).toBe(4);
+      expect(evaluate('ceil(-3.2)', {})).toBe(-3);
+    });
+
+    it('should evaluate abs()', () => {
+      expect(evaluate('abs(-5)', {})).toBe(5);
+      expect(evaluate('abs(5)', {})).toBe(5);
+    });
+
+    it('should evaluate sqrt()', () => {
+      expect(evaluate('sqrt(16)', {})).toBe(4);
+      expect(evaluate('sqrt(2)', {})).toBeCloseTo(1.414, 3);
+    });
+
+    it('should evaluate pow()', () => {
+      expect(evaluate('pow(2, 3)', {})).toBe(8);
+      expect(evaluate('pow(3, 2)', {})).toBe(9);
+    });
+
+    it('should evaluate min()', () => {
+      expect(evaluate('min(5, 3, 8, 1)', {})).toBe(1);
+      expect(evaluate('min(a, b)', { a: 10, b: 5 })).toBe(5);
+      expect(Number.isNaN(evaluate('min()', {}))).toBe(true);
+    });
+
+    it('should evaluate max()', () => {
+      expect(evaluate('max(5, 3, 8, 1)', {})).toBe(8);
+      expect(evaluate('max(a, b)', { a: 10, b: 5 })).toBe(10);
+      expect(Number.isNaN(evaluate('max()', {}))).toBe(true);
+    });
+
+    it('should evaluate log()', () => {
+      expect(evaluate('log(1)', {})).toBe(0);
+      expect(evaluate('log(10)', {})).toBeCloseTo(2.302, 2);
+    });
+
+    it('should evaluate log10()', () => {
+      expect(evaluate('log10(100)', {})).toBe(2);
+      expect(evaluate('log10(1000)', {})).toBe(3);
+    });
+
+    it('should evaluate exp()', () => {
+      expect(evaluate('exp(0)', {})).toBe(1);
+      expect(evaluate('exp(1)', {})).toBeCloseTo(2.718, 3);
+    });
+
+    it('should evaluate sign()', () => {
+      expect(evaluate('sign(-5)', {})).toBe(-1);
+      expect(evaluate('sign(0)', {})).toBe(0);
+      expect(evaluate('sign(5)', {})).toBe(1);
+    });
+  });
+
+  describe('array functions', () => {
+    it('should evaluate sum()', () => {
+      expect(evaluate('sum(prices)', { prices: [10, 20, 30] })).toBe(60);
+      expect(evaluate('sum(prices)', { prices: [] })).toBe(0);
+    });
+
+    it('should evaluate avg()', () => {
+      expect(evaluate('avg(scores)', { scores: [10, 20, 30] })).toBe(20);
+      expect(evaluate('avg(scores)', { scores: [] })).toBe(0);
+    });
+
+    it('should evaluate count()', () => {
+      expect(evaluate('count(items)', { items: [1, 2, 3, 4, 5] })).toBe(5);
+      expect(evaluate('count(items)', { items: [] })).toBe(0);
+    });
+
+    it('should evaluate first()', () => {
+      expect(evaluate('first(items)', { items: ['a', 'b', 'c'] })).toBe('a');
+      expect(evaluate('first(items)', { items: [] })).toBeUndefined();
+    });
+
+    it('should evaluate last()', () => {
+      expect(evaluate('last(items)', { items: ['a', 'b', 'c'] })).toBe('c');
+      expect(evaluate('last(items)', { items: [] })).toBeUndefined();
+    });
+
+    it('should evaluate includes()', () => {
+      expect(evaluate('includes(tags, "a")', { tags: ['a', 'b', 'c'] })).toBe(
+        true,
+      );
+      expect(evaluate('includes(tags, "x")', { tags: ['a', 'b', 'c'] })).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('conversion functions', () => {
+    it('should evaluate tonumber()', () => {
+      expect(evaluate('tonumber("42")', {})).toBe(42);
+      expect(evaluate('tonumber("3.14")', {})).toBe(3.14);
+    });
+
+    it('should evaluate toboolean()', () => {
+      expect(evaluate('toboolean(1)', {})).toBe(true);
+      expect(evaluate('toboolean(0)', {})).toBe(false);
+      expect(evaluate('toboolean("")', {})).toBe(false);
+      expect(evaluate('toboolean("hello")', {})).toBe(true);
+    });
+
+    it('should evaluate isnull()', () => {
+      expect(evaluate('isnull(value)', { value: null })).toBe(true);
+      expect(evaluate('isnull(value)', { value: undefined })).toBe(true);
+      expect(evaluate('isnull(value)', { value: 0 })).toBe(false);
+      expect(evaluate('isnull(value)', { value: '' })).toBe(false);
+    });
+  });
+
+  describe('conditional functions', () => {
+    it('should evaluate if()', () => {
+      expect(evaluate('if(1, "yes", "no")', {})).toBe('yes');
+      expect(evaluate('if(0, "yes", "no")', {})).toBe('no');
+      expect(evaluate('if(stock > 0, "Available", "Out")', { stock: 5 })).toBe(
+        'Available',
+      );
+      expect(evaluate('if(stock > 0, "Available", "Out")', { stock: 0 })).toBe(
+        'Out',
+      );
+    });
+
+    it('should evaluate coalesce()', () => {
+      expect(evaluate('coalesce(a, b, c)', { a: null, b: null, c: 'c' })).toBe(
+        'c',
+      );
+      expect(evaluate('coalesce(a, b)', { a: 'a', b: 'b' })).toBe('a');
+      expect(
+        evaluate('coalesce(a, b)', { a: undefined, b: undefined }),
+      ).toBeNull();
+    });
+  });
 });
 
 describe('inferFormulaType', () => {
   describe('arithmetic expressions', () => {
     it('should infer number for arithmetic operations', () => {
       expect(inferFormulaType('price * quantity')).toBe('number');
-      expect(inferFormulaType('a + b')).toBe('number');
       expect(inferFormulaType('a - b')).toBe('number');
       expect(inferFormulaType('a / b')).toBe('number');
       expect(inferFormulaType('a % b')).toBe('number');
+    });
+
+    it('should infer number for + with number operands', () => {
+      const fieldTypes = { a: 'number' as const, b: 'number' as const };
+      expect(inferFormulaType('a + b', fieldTypes)).toBe('number');
+      expect(inferFormulaType('1 + 2')).toBe('number');
     });
 
     it('should infer number for unary minus', () => {
@@ -334,6 +612,29 @@ describe('inferFormulaType', () => {
     });
   });
 
+  describe('string concatenation with + operator', () => {
+    it('should infer string when + has string operands', () => {
+      const fieldTypes = { a: 'string' as const, b: 'string' as const };
+      expect(inferFormulaType('a + b', fieldTypes)).toBe('string');
+    });
+
+    it('should infer string for string literal concatenation', () => {
+      const fieldTypes = { a: 'string' as const, b: 'string' as const };
+      expect(inferFormulaType('a + " " + b', fieldTypes)).toBe('string');
+    });
+
+    it('should infer string when one operand is a string literal', () => {
+      const fieldTypes = { name: 'string' as const };
+      expect(inferFormulaType('name + "!"', fieldTypes)).toBe('string');
+      expect(inferFormulaType('"Hello " + name', fieldTypes)).toBe('string');
+    });
+
+    it('should infer string when mixing string and number', () => {
+      const fieldTypes = { name: 'string' as const, age: 'number' as const };
+      expect(inferFormulaType('name + age', fieldTypes)).toBe('string');
+    });
+  });
+
   describe('field type lookup', () => {
     it('should infer type from field types', () => {
       const fieldTypes = {
@@ -350,6 +651,14 @@ describe('inferFormulaType', () => {
       expect(inferFormulaType('unknown')).toBe('unknown');
       expect(inferFormulaType('unknown', {})).toBe('unknown');
     });
+
+    it('should return unknown for + with unknown operands', () => {
+      expect(inferFormulaType('a + b')).toBe('unknown');
+      expect(inferFormulaType('a + 1')).toBe('unknown');
+      expect(inferFormulaType('1 + a')).toBe('unknown');
+      const fieldTypes = { price: 'number' as const };
+      expect(inferFormulaType('price + unknown', fieldTypes)).toBe('unknown');
+    });
   });
 
   describe('function calls', () => {
@@ -362,6 +671,7 @@ describe('inferFormulaType', () => {
       expect(inferFormulaType('sum(items)')).toBe('number');
       expect(inferFormulaType('avg(items)')).toBe('number');
       expect(inferFormulaType('count(items)')).toBe('number');
+      expect(inferFormulaType('length(name)')).toBe('number');
     });
 
     it('should infer string for string functions', () => {
@@ -376,6 +686,9 @@ describe('inferFormulaType', () => {
       expect(inferFormulaType('startswith(name, "a")')).toBe('boolean');
       expect(inferFormulaType('endswith(name, "z")')).toBe('boolean');
       expect(inferFormulaType('isnull(value)')).toBe('boolean');
+      expect(inferFormulaType('and(a, b)')).toBe('boolean');
+      expect(inferFormulaType('or(a, b)')).toBe('boolean');
+      expect(inferFormulaType('not(a)')).toBe('boolean');
     });
   });
 

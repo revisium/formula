@@ -92,8 +92,6 @@ const KEYWORDS = new Set([
   'first',
   'last',
   'join',
-  'filter',
-  'map',
   'includes',
 ]);
 
@@ -104,8 +102,6 @@ const ARRAY_FUNCTIONS = new Set([
   'first',
   'last',
   'join',
-  'filter',
-  'map',
   'includes',
 ]);
 
@@ -396,6 +392,84 @@ export function validateSyntax(
   }
 }
 
+const BUILTIN_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
+  and: (a: unknown, b: unknown) => Boolean(a) && Boolean(b),
+  or: (a: unknown, b: unknown) => Boolean(a) || Boolean(b),
+  not: (a: unknown) => !a,
+  concat: (...args: unknown[]) => args.map(String).join(''),
+  upper: (s: unknown) => String(s).toUpperCase(),
+  lower: (s: unknown) => String(s).toLowerCase(),
+  trim: (s: unknown) => String(s).trim(),
+  left: (s: unknown, n: unknown) => {
+    const count = Math.max(0, Math.floor(Number(n)));
+    return String(s).slice(0, count);
+  },
+  right: (s: unknown, n: unknown) => {
+    const str = String(s);
+    const count = Math.max(0, Math.floor(Number(n)));
+    return count === 0 ? '' : str.slice(-count);
+  },
+  replace: (s: unknown, search: unknown, replacement: unknown) =>
+    String(s).replace(String(search), String(replacement)),
+  tostring: String,
+  length: (s: unknown) => {
+    if (Array.isArray(s)) return s.length;
+    if (typeof s === 'string') return s.length;
+    if (s !== null && typeof s === 'object') return Object.keys(s).length;
+    return String(s).length;
+  },
+  contains: (s: unknown, search: unknown) => String(s).includes(String(search)),
+  startswith: (s: unknown, search: unknown) =>
+    String(s).startsWith(String(search)),
+  endswith: (s: unknown, search: unknown) => String(s).endsWith(String(search)),
+  tonumber: Number,
+  toboolean: Boolean,
+  isnull: (v: unknown) => v === null || v === undefined,
+  coalesce: (...args: unknown[]) =>
+    args.find((v) => v !== null && v !== undefined) ?? null,
+  round: (n: unknown, decimals?: unknown) => {
+    const num = Number(n);
+    const dec = decimals === undefined ? 0 : Number(decimals);
+    const factor = 10 ** dec;
+    return Math.round(num * factor) / factor;
+  },
+  floor: (n: unknown) => Math.floor(Number(n)),
+  ceil: (n: unknown) => Math.ceil(Number(n)),
+  abs: (n: unknown) => Math.abs(Number(n)),
+  sqrt: (n: unknown) => Math.sqrt(Number(n)),
+  pow: (base: unknown, exp: unknown) => Math.pow(Number(base), Number(exp)),
+  min: (...args: unknown[]) =>
+    args.length === 0 ? Number.NaN : Math.min(...args.map(Number)),
+  max: (...args: unknown[]) =>
+    args.length === 0 ? Number.NaN : Math.max(...args.map(Number)),
+  log: (n: unknown) => Math.log(Number(n)),
+  log10: (n: unknown) => Math.log10(Number(n)),
+  exp: (n: unknown) => Math.exp(Number(n)),
+  sign: (n: unknown) => Math.sign(Number(n)),
+  sum: (arr: unknown) =>
+    Array.isArray(arr) ? arr.reduce((a: number, b) => a + Number(b), 0) : 0,
+  avg: (arr: unknown) =>
+    Array.isArray(arr) && arr.length > 0
+      ? arr.reduce((a: number, b) => a + Number(b), 0) / arr.length
+      : 0,
+  count: (arr: unknown) => (Array.isArray(arr) ? arr.length : 0),
+  first: (arr: unknown): unknown =>
+    Array.isArray(arr) ? (arr[0] as unknown) : undefined,
+  last: (arr: unknown): unknown =>
+    Array.isArray(arr) ? (arr.at(-1) as unknown) : undefined,
+  join: (arr: unknown, separator?: unknown) => {
+    if (!Array.isArray(arr)) return '';
+    if (separator === undefined) return arr.join(',');
+    if (typeof separator === 'string') return arr.join(separator);
+    if (typeof separator === 'number') return arr.join(String(separator));
+    return arr.join(',');
+  },
+  includes: (arr: unknown, value: unknown) =>
+    Array.isArray(arr) ? arr.includes(value) : false,
+  if: (condition: unknown, ifTrue: unknown, ifFalse: unknown) =>
+    condition ? ifTrue : ifFalse,
+};
+
 export function evaluate(
   expression: string,
   context: Record<string, unknown>,
@@ -405,7 +479,13 @@ export function evaluate(
     throw new Error('Empty expression');
   }
   const fn = subscript(trimmed);
-  return fn(context);
+  const safeContext: Record<string, unknown> = { ...BUILTIN_FUNCTIONS };
+  for (const [key, value] of Object.entries(context)) {
+    if (typeof value !== 'function') {
+      safeContext[key] = value;
+    }
+  }
+  return fn(safeContext);
 }
 
 /**
@@ -421,17 +501,8 @@ export interface FieldTypes {
 }
 
 const ARITHMETIC_OPS = new Set(['+', '-', '*', '/', '%']);
-const COMPARISON_OPS = new Set([
-  '<',
-  '>',
-  '<=',
-  '>=',
-  '==',
-  '!=',
-  '===',
-  '!==',
-]);
-const LOGICAL_OPS = new Set(['&&', '||', '!', 'and', 'or', 'not']);
+const COMPARISON_OPS = new Set(['<', '>', '<=', '>=', '==', '!=']);
+const LOGICAL_OPS = new Set(['&&', '||', '!']);
 const NUMERIC_FUNCTIONS = new Set([
   'round',
   'floor',
@@ -449,6 +520,7 @@ const NUMERIC_FUNCTIONS = new Set([
   'avg',
   'count',
   'tonumber',
+  'length',
 ]);
 const STRING_FUNCTIONS = new Set([
   'concat',
@@ -462,6 +534,9 @@ const STRING_FUNCTIONS = new Set([
   'join',
 ]);
 const BOOLEAN_FUNCTIONS = new Set([
+  'and',
+  'or',
+  'not',
   'contains',
   'startswith',
   'endswith',
@@ -501,7 +576,13 @@ function inferLiteralArrayType(node: unknown[]): InferredType {
 function inferOperatorType(
   op: string,
   argsLength: number,
+  argTypes?: InferredType[],
 ): InferredType | null {
+  if (op === '+' && argTypes) {
+    if (argTypes.includes('string')) return 'string';
+    if (argTypes.includes('unknown')) return 'unknown';
+    return 'number';
+  }
   if (ARITHMETIC_OPS.has(op)) return 'number';
   if (COMPARISON_OPS.has(op)) return 'boolean';
   if (LOGICAL_OPS.has(op)) return 'boolean';
@@ -538,7 +619,11 @@ function inferTypeFromNode(
 
   const [op, ...args] = node;
 
-  const operatorType = inferOperatorType(op, args.length);
+  const argTypes =
+    op === '+'
+      ? args.map((arg) => inferTypeFromNode(arg, fieldTypes))
+      : undefined;
+  const operatorType = inferOperatorType(op, args.length, argTypes);
   if (operatorType !== null) return operatorType;
 
   if (op === '.' || op === '[]') {

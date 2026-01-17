@@ -9,6 +9,120 @@ This document describes the formula syntax and features supported by `@revisium/
 
 Formulas are expressions that reference data fields and perform calculations. The parser analyzes formulas to extract dependencies and detect which features are used.
 
+## Operators
+
+### Arithmetic Operators
+
+| Operator | Description |
+|----------|-------------|
+| `+` | Addition or string concatenation |
+| `-` | Subtraction |
+| `*` | Multiplication |
+| `/` | Division |
+| `%` | Modulo (remainder) |
+
+### Comparison Operators
+
+| Operator | Description |
+|----------|-------------|
+| `==` | Equal |
+| `!=` | Not equal |
+| `>` | Greater than |
+| `<` | Less than |
+| `>=` | Greater or equal |
+| `<=` | Less or equal |
+
+### Logical Operators
+
+| Operator | Description |
+|----------|-------------|
+| `&&` | Logical AND |
+| `||` | Logical OR |
+| `!` | Logical NOT |
+
+### Other Syntax
+
+- Parentheses: (a + b) * c
+- Unary minus: -value, a + -b
+
+## Built-in Functions
+
+### String Functions
+
+| Function | Description | Signature | Returns |
+|----------|-------------|-----------|---------|
+| `concat` | Concatenate multiple values into a single string | `concat(value1, value2, ...)` | string |
+| `upper` | Convert string to uppercase | `upper(text)` | string |
+| `lower` | Convert string to lowercase | `lower(text)` | string |
+| `trim` | Remove whitespace from both ends of a string | `trim(text)` | string |
+| `left` | Extract characters from the beginning of a string | `left(text, count)` | string |
+| `right` | Extract characters from the end of a string | `right(text, count)` | string |
+| `replace` | Replace first occurrence of a substring | `replace(text, search, replacement)` | string |
+| `join` | Join array elements into a string | `join(array, separator?)` | string |
+
+### Numeric Functions
+
+| Function | Description | Signature | Returns |
+|----------|-------------|-----------|---------|
+| `round` | Round a number to specified decimal places | `round(number, decimals?)` | number |
+| `floor` | Round down to the nearest integer | `floor(number)` | number |
+| `ceil` | Round up to the nearest integer | `ceil(number)` | number |
+| `abs` | Get the absolute value | `abs(number)` | number |
+| `sqrt` | Calculate the square root | `sqrt(number)` | number |
+| `pow` | Raise a number to a power | `pow(base, exponent)` | number |
+| `min` | Get the minimum of multiple values | `min(value1, value2, ...)` | number |
+| `max` | Get the maximum of multiple values | `max(value1, value2, ...)` | number |
+| `log` | Calculate the natural logarithm | `log(number)` | number |
+| `log10` | Calculate the base-10 logarithm | `log10(number)` | number |
+| `exp` | Calculate e raised to a power | `exp(number)` | number |
+| `sign` | Get the sign of a number (-1, 0, or 1) | `sign(number)` | number |
+| `length` | Get the length of a string or array | `length(value)` | number |
+
+### Boolean Functions
+
+| Function | Description | Signature | Returns |
+|----------|-------------|-----------|---------|
+| `and` | Logical AND of two values | `and(a, b)` | boolean |
+| `or` | Logical OR of two values | `or(a, b)` | boolean |
+| `not` | Logical NOT of a value | `not(value)` | boolean |
+| `contains` | Check if a string contains a substring | `contains(text, search)` | boolean |
+| `startswith` | Check if a string starts with a prefix | `startswith(text, prefix)` | boolean |
+| `endswith` | Check if a string ends with a suffix | `endswith(text, suffix)` | boolean |
+| `isnull` | Check if a value is null or undefined | `isnull(value)` | boolean |
+| `includes` | Check if an array contains a value | `includes(array, value)` | boolean |
+
+### Array Functions
+
+| Function | Description | Signature | Returns |
+|----------|-------------|-----------|---------|
+| `sum` | Calculate the sum of array elements | `sum(array)` | number |
+| `avg` | Calculate the average of array elements | `avg(array)` | number |
+| `count` | Get the number of elements in an array | `count(array)` | number |
+| `first` | Get the first element of an array | `first(array)` | any |
+| `last` | Get the last element of an array | `last(array)` | any |
+
+### Conversion Functions
+
+| Function | Description | Signature | Returns |
+|----------|-------------|-----------|---------|
+| `tostring` | Convert a value to string | `tostring(value)` | string |
+| `tonumber` | Convert a value to number | `tonumber(value)` | number |
+| `toboolean` | Convert a value to boolean | `toboolean(value)` | boolean |
+
+### Conditional Functions
+
+| Function | Description | Signature | Returns |
+|----------|-------------|-----------|---------|
+| `if` | Return one of two values based on a condition | `if(condition, valueIfTrue, valueIfFalse)` | any |
+| `coalesce` | Return the first non-null value | `coalesce(value1, value2, ...)` | any |
+
+## Field References
+
+- Simple field: fieldName (e.g., price, quantity)
+- Nested path: object.property (e.g., stats.damage)
+- Array index: array[0] or array[-1] for last element
+- Combined: items[0].price, user.addresses[-1].city
+
 ## Supported Features
 
 ### v1.0 Features
@@ -25,15 +139,7 @@ baseDamage
 
 **Dependencies extracted:** ["price"], ["quantity"], ["baseDamage"]
 
-#### Arithmetic Operators
-
-| Operator | Description |
-|----------|-------------|
-| `+` | Addition or string concatenation |
-| `-` | Subtraction |
-| `*` | Multiplication |
-| `/` | Division |
-| `%` | Modulo (remainder) |
+#### Arithmetic Operations
 
 ```
 price * 1.1
@@ -41,37 +147,12 @@ a + b - c
 quantity * price
 ```
 
-#### Comparison Operators
-
-| Operator | Description |
-|----------|-------------|
-| `==` | Equal |
-| `!=` | Not equal |
-| `>` | Greater than |
-| `<` | Less than |
-| `>=` | Greater or equal |
-| `<=` | Less or equal |
+#### Comparisons
 
 ```
 price > 100
 x == 10
 quantity >= 5
-```
-
-#### Unary Minus
-
-```
--x
-a + -b
-```
-
-#### Parentheses
-
-Group expressions for precedence control.
-
-```
-(a + b) * c
-price * (1 + taxRate)
 ```
 
 ### v1.1 Features
@@ -130,7 +211,7 @@ interface ParseResult {
 }
 ```
 
-## Examples
+## API Examples
 
 ### Simple Expression (v1.0)
 
@@ -186,3 +267,30 @@ evaluate('price > 100', { price: 150 })
 evaluate('a + b * c', { a: 1, b: 2, c: 3 })
 // 7
 ```
+
+## Schema Usage
+
+Formula fields use the following structure:
+
+```json
+{ "x-formula": { "version": 1, "expression": "..." }, "readOnly": true }
+```
+
+**Supported field types:** string, number, boolean
+
+**Rules:**
+- Add x-formula to string, number, or boolean field schema
+- readOnly: true is REQUIRED for fields with x-formula
+- Expression must reference existing fields in the same table
+- Circular dependencies are not allowed (a references b, b references a)
+
+## Expression Examples
+
+| Expression | Description | Result Type |
+|------------|-------------|-------------|
+| `price * quantity` | Calculate total from price and quantity | number |
+| `firstName + " " + lastName` | Concatenate strings with space | string |
+| `quantity > 0` | Check if in stock | boolean |
+| `if(stock > 0, "Available", "Out of Stock")` | Conditional text based on stock | string |
+| `price * (1 + taxRate)` | Price with tax | number |
+| `items[0].price + items[1].price` | Sum first two item prices (v1.1) | number |
