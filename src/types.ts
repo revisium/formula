@@ -16,14 +16,6 @@ export interface XFormula {
    * @maxLength 10000
    */
   expression: string;
-
-  /**
-   * Error handling strategy
-   * - "null": Return null on error (default)
-   * - "default": Return field's default value on error
-   * - "throw": Throw error (formula field shows error state)
-   */
-  onError?: 'null' | 'default' | 'throw';
 }
 
 /**
