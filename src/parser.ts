@@ -1,4 +1,4 @@
-import subscript, { parse, compile, token } from 'subscript';
+import subscript, { parse, token } from 'subscript';
 import { FormulaFeature, FormulaMinorVersion } from './types';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -385,7 +385,9 @@ export function validateSyntax(
   } catch (e) {
     const error = e as Error;
     const match = /at (\d+):(\d+)/.exec(error.message);
-    const position = match ? parseInt(match[2] ?? '0', 10) - 1 : undefined;
+    const position = match
+      ? Number.parseInt(match[2] ?? '0', 10) - 1
+      : undefined;
     return {
       isValid: false,
       error: error.message,
@@ -402,4 +404,4 @@ export function evaluate(
   return fn(context);
 }
 
-export { parse, compile };
+export { parse, compile } from 'subscript';
