@@ -140,7 +140,9 @@ export interface FormulaValidationError {
 /**
  * Formula validation warning types
  */
-export type FormulaValidationWarningType = 'TYPE_COERCION' | 'DEPRECATED_FUNCTION';
+export type FormulaValidationWarningType =
+  | 'TYPE_COERCION'
+  | 'DEPRECATED_FUNCTION';
 
 /**
  * Formula validation warning

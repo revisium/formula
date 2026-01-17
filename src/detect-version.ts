@@ -1,16 +1,19 @@
 import { FormulaFeature, FormulaMinorVersion, FormulaAnalysis } from './types';
 
-const NESTED_PATH_REGEX = /[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_]/;
+// eslint-disable-next-line sonarjs/slow-regex -- Simple alternation, no backtracking risk
+const NESTED_PATH_REGEX = /[a-zA-Z_]\w*\.[a-zA-Z_]/;
 const ARRAY_INDEX_REGEX = /\[-?\d+]/;
-const ROOT_PATH_REGEX = /(?:^|[^a-zA-Z0-9_])\/[a-zA-Z_]/;
-const CONTEXT_TOKEN_REGEX = /@(?:prev|next|current)\b|#(?:index|first|last|length)\b/;
-const ARRAY_FUNCTION_REGEX = /\b(?:sum|avg|count|first|last|join|filter|map|includes)\s*\(/i;
+const ROOT_PATH_REGEX = /(?:^|\W)\/[a-zA-Z_]/;
+const CONTEXT_TOKEN_REGEX =
+  /@(?:prev|next|current)\b|#(?:index|first|last|length)\b/;
+const ARRAY_FUNCTION_REGEX =
+  /\b(?:sum|avg|count|first|last|join|filter|map|includes)\s*\(/i;
 const IDENTIFIER_REGEX = new RegExp(
-  String.raw`(?:^|[^.@#\w])([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*(?:\[-?\d+]|\[\*])?(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)`,
+  String.raw`(?:^|[^.@#/\w])([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*(?:\[-?\d+]|\[\*])?(?:\.[a-zA-Z_]\w*)*)`,
   'g',
 );
-const ROOT_PATH_DEP_REGEX = /(?:^|[^a-zA-Z0-9_])\/([a-zA-Z_][a-zA-Z0-9_]*)/g;
-const RELATIVE_PATH_DEP_REGEX = /\.\.\/([a-zA-Z_][a-zA-Z0-9_]*)/g;
+const ROOT_PATH_DEP_REGEX = /(?:^|\W)\/([a-zA-Z_]\w*)/g;
+const RELATIVE_PATH_DEP_REGEX = /\.\.\/([a-zA-Z_]\w*)/g;
 
 /**
  * Detect formula features and minimum required version from expression
@@ -93,12 +96,50 @@ function extractDependencies(expression: string): string[] {
 }
 
 const KEYWORDS = new Set([
-  'true', 'false', 'null',
-  'and', 'or', 'not',
-  'if', 'round', 'floor', 'ceil', 'abs', 'sqrt', 'pow', 'min', 'max', 'log', 'log10', 'exp', 'sign',
-  'concat', 'upper', 'lower', 'length', 'trim', 'left', 'right', 'replace', 'contains', 'startswith', 'endswith',
-  'tostring', 'tonumber', 'toboolean', 'isnull', 'coalesce',
-  'sum', 'avg', 'count', 'first', 'last', 'join', 'filter', 'map', 'includes',
+  'true',
+  'false',
+  'null',
+  'and',
+  'or',
+  'not',
+  'if',
+  'round',
+  'floor',
+  'ceil',
+  'abs',
+  'sqrt',
+  'pow',
+  'min',
+  'max',
+  'log',
+  'log10',
+  'exp',
+  'sign',
+  'concat',
+  'upper',
+  'lower',
+  'length',
+  'trim',
+  'left',
+  'right',
+  'replace',
+  'contains',
+  'startswith',
+  'endswith',
+  'tostring',
+  'tonumber',
+  'toboolean',
+  'isnull',
+  'coalesce',
+  'sum',
+  'avg',
+  'count',
+  'first',
+  'last',
+  'join',
+  'filter',
+  'map',
+  'includes',
 ]);
 
 function isKeyword(identifier: string): boolean {

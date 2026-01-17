@@ -63,7 +63,9 @@ describe('detectVersion', () => {
     });
 
     it('should detect context tokens @prev', () => {
-      const result = detectVersion('if(#first, value, @prev.runningTotal + value)');
+      const result = detectVersion(
+        'if(#first, value, @prev.runningTotal + value)',
+      );
       expect(result.minVersion).toBe('1.1');
       expect(result.features).toContain('context_token');
     });
@@ -138,7 +140,9 @@ describe('detectVersion', () => {
     });
 
     it('should detect complex Excel-style formula', () => {
-      const result = detectVersion('if(#first, value, @prev.runningTotal + value)');
+      const result = detectVersion(
+        'if(#first, value, @prev.runningTotal + value)',
+      );
       expect(result.minVersion).toBe('1.1');
       expect(result.features).toContain('context_token');
     });
