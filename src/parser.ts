@@ -400,7 +400,11 @@ export function evaluate(
   expression: string,
   context: Record<string, unknown>,
 ): unknown {
-  const fn = subscript(expression);
+  const trimmed = expression.trim();
+  if (!trimmed) {
+    throw new Error('Empty expression');
+  }
+  const fn = subscript(trimmed);
   return fn(context);
 }
 
