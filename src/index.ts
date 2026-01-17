@@ -1,8 +1,13 @@
 export * from './types';
 
 // Parser API
-export { parseFormula, validateSyntax, evaluate } from './parser';
-export type { ASTNode, ParseResult } from './parser';
+export {
+  parseFormula,
+  validateSyntax,
+  evaluate,
+  inferFormulaType,
+} from './parser';
+export type { ASTNode, ParseResult, InferredType, FieldTypes } from './parser';
 
 // Expression API (high-level)
 export { parseExpression } from './parse-formula';

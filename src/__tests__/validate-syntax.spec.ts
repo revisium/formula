@@ -41,37 +41,49 @@ describe('validateFormulaSyntax', () => {
     it('should reject empty expression', () => {
       const result = validateFormulaSyntax('');
       expect(result.isValid).toBe(false);
-      expect(result.error).toBe('Empty expression');
+      if (!result.isValid) {
+        expect(result.error).toBe('Empty expression');
+      }
     });
 
     it('should reject whitespace-only expression', () => {
       const result = validateFormulaSyntax('   ');
       expect(result.isValid).toBe(false);
-      expect(result.error).toBe('Empty expression');
+      if (!result.isValid) {
+        expect(result.error).toBe('Empty expression');
+      }
     });
 
     it('should reject unclosed parenthesis', () => {
       const result = validateFormulaSyntax('price * (1.1');
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain('Unclosed');
+      if (!result.isValid) {
+        expect(result.error).toContain('Unclosed');
+      }
     });
 
     it('should reject unclosed bracket', () => {
       const result = validateFormulaSyntax('items[0');
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain('Unclosed');
+      if (!result.isValid) {
+        expect(result.error).toContain('Unclosed');
+      }
     });
 
     it('should reject unexpected closing bracket', () => {
       const result = validateFormulaSyntax('price * 1.1)');
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain('Unexpected');
+      if (!result.isValid) {
+        expect(result.error).toContain('Unexpected');
+      }
     });
 
     it('should reject unclosed string literal', () => {
       const result = validateFormulaSyntax('concat("hello, name)');
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain('string');
+      if (!result.isValid) {
+        expect(result.error).toContain('string');
+      }
     });
 
     it('should reject expression ending with operator', () => {

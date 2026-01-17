@@ -5,6 +5,7 @@ import {
   buildDependencyGraph,
   detectCircularDependencies,
 } from './dependency-graph';
+import { inferFormulaType, FieldTypes, InferredType } from './parser';
 
 export interface FormulaValidationError {
   field: string;
@@ -26,6 +27,44 @@ function getSchemaFields(schema: JsonSchema): Set<string> {
   }
 
   return fields;
+}
+
+function getSchemaFieldTypes(schema: JsonSchema): FieldTypes {
+  const fieldTypes: FieldTypes = {};
+  const properties = schema.properties ?? {};
+
+  for (const [fieldName, fieldSchema] of Object.entries(properties)) {
+    const schemaType = fieldSchema.type;
+    if (
+      schemaType === 'number' ||
+      schemaType === 'string' ||
+      schemaType === 'boolean' ||
+      schemaType === 'object' ||
+      schemaType === 'array'
+    ) {
+      fieldTypes[fieldName] = schemaType;
+    }
+  }
+
+  return fieldTypes;
+}
+
+function schemaTypeToInferred(
+  schemaType: string | undefined,
+): InferredType | null {
+  if (schemaType === 'number') return 'number';
+  if (schemaType === 'string') return 'string';
+  if (schemaType === 'boolean') return 'boolean';
+  return null;
+}
+
+function isTypeCompatible(
+  inferredType: InferredType,
+  expectedType: InferredType | null,
+): boolean {
+  if (expectedType === null) return true;
+  if (inferredType === 'unknown') return true;
+  return inferredType === expectedType;
 }
 
 function extractFieldRoot(dependency: string): string {
@@ -67,6 +106,18 @@ export function validateFormulaAgainstSchema(
     };
   }
 
+  const fieldSchema = schema.properties?.[fieldName];
+  const expectedType = schemaTypeToInferred(fieldSchema?.type);
+  const fieldTypes = getSchemaFieldTypes(schema);
+  const inferredType = inferFormulaType(expression, fieldTypes);
+
+  if (!isTypeCompatible(inferredType, expectedType)) {
+    return {
+      field: fieldName,
+      error: `Type mismatch: formula returns '${inferredType}' but field expects '${expectedType}'`,
+    };
+  }
+
   return null;
 }
 
@@ -101,16 +152,16 @@ export function validateSchemaFormulas(
   const graph = buildDependencyGraph(dependencies);
   const circularCheck = detectCircularDependencies(graph);
 
-  if (
-    circularCheck.hasCircular &&
-    circularCheck.cycle &&
-    circularCheck.cycle.length > 0
-  ) {
-    errors.push({
-      field: circularCheck.cycle[0],
-      error: `Circular dependency: ${circularCheck.cycle.join(' → ')}`,
-    });
-    return { isValid: false, errors };
+  const cycle = circularCheck.cycle;
+  if (circularCheck.hasCircular && cycle && cycle.length > 0) {
+    const firstField = cycle[0];
+    if (firstField) {
+      errors.push({
+        field: firstField,
+        error: `Circular dependency: ${cycle.join(' → ')}`,
+      });
+      return { isValid: false, errors };
+    }
   }
 
   return { isValid: true, errors: [] };

@@ -69,6 +69,64 @@ describe('validateFormulaAgainstSchema', () => {
     expect(result).not.toBeNull();
     expect(result?.error).toBe("Unknown field 'unknown' in formula");
   });
+
+  it('should return error for type mismatch - boolean to number', () => {
+    const result = validateFormulaAgainstSchema('price > 100', 'total', schema);
+    expect(result).not.toBeNull();
+    expect(result?.error).toBe(
+      "Type mismatch: formula returns 'boolean' but field expects 'number'",
+    );
+  });
+
+  it('should allow matching types - number to number', () => {
+    const result = validateFormulaAgainstSchema(
+      'price * quantity',
+      'total',
+      schema,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('should allow unknown inferred type', () => {
+    const schemaWithString: JsonSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        computed: {
+          type: 'string',
+          'x-formula': { version: 1, expression: 'name' },
+        },
+      },
+    };
+    const result = validateFormulaAgainstSchema(
+      'name',
+      'computed',
+      schemaWithString,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('should return error for string formula on number field', () => {
+    const schemaWithName: JsonSchema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        total: {
+          type: 'number',
+          'x-formula': { version: 1, expression: 'upper(name)' },
+        },
+      },
+    };
+    const result = validateFormulaAgainstSchema(
+      'upper(name)',
+      'total',
+      schemaWithName,
+    );
+    expect(result).not.toBeNull();
+    expect(result?.error).toBe(
+      "Type mismatch: formula returns 'string' but field expects 'number'",
+    );
+  });
 });
 
 describe('validateSchemaFormulas', () => {

@@ -1,5 +1,10 @@
 import { describe, it, expect } from '@jest/globals';
-import { parseFormula, validateSyntax, evaluate } from '../parser';
+import {
+  parseFormula,
+  validateSyntax,
+  evaluate,
+  inferFormulaType,
+} from '../parser';
 
 describe('parseFormula', () => {
   describe('basic expressions', () => {
@@ -286,6 +291,107 @@ describe('evaluate', () => {
       expect(evaluate('5 <= 4', {})).toBe(false);
       expect(evaluate('x == 10', { x: 10 })).toBe(true);
       expect(evaluate('x != 10', { x: 5 })).toBe(true);
+    });
+  });
+});
+
+describe('inferFormulaType', () => {
+  describe('arithmetic expressions', () => {
+    it('should infer number for arithmetic operations', () => {
+      expect(inferFormulaType('price * quantity')).toBe('number');
+      expect(inferFormulaType('a + b')).toBe('number');
+      expect(inferFormulaType('a - b')).toBe('number');
+      expect(inferFormulaType('a / b')).toBe('number');
+      expect(inferFormulaType('a % b')).toBe('number');
+    });
+
+    it('should infer number for unary minus', () => {
+      expect(inferFormulaType('-price')).toBe('number');
+    });
+
+    it('should infer number for numeric literals', () => {
+      expect(inferFormulaType('42')).toBe('number');
+      expect(inferFormulaType('3.14')).toBe('number');
+    });
+  });
+
+  describe('comparison expressions', () => {
+    it('should infer boolean for comparison operations', () => {
+      expect(inferFormulaType('price > 100')).toBe('boolean');
+      expect(inferFormulaType('a < b')).toBe('boolean');
+      expect(inferFormulaType('a >= b')).toBe('boolean');
+      expect(inferFormulaType('a <= b')).toBe('boolean');
+      expect(inferFormulaType('a == b')).toBe('boolean');
+      expect(inferFormulaType('a != b')).toBe('boolean');
+    });
+  });
+
+  describe('logical expressions', () => {
+    it('should infer boolean for logical operations', () => {
+      expect(inferFormulaType('a && b')).toBe('boolean');
+      expect(inferFormulaType('a || b')).toBe('boolean');
+      expect(inferFormulaType('!a')).toBe('boolean');
+    });
+  });
+
+  describe('field type lookup', () => {
+    it('should infer type from field types', () => {
+      const fieldTypes = {
+        price: 'number' as const,
+        name: 'string' as const,
+        active: 'boolean' as const,
+      };
+      expect(inferFormulaType('price', fieldTypes)).toBe('number');
+      expect(inferFormulaType('name', fieldTypes)).toBe('string');
+      expect(inferFormulaType('active', fieldTypes)).toBe('boolean');
+    });
+
+    it('should return unknown for unknown fields', () => {
+      expect(inferFormulaType('unknown')).toBe('unknown');
+      expect(inferFormulaType('unknown', {})).toBe('unknown');
+    });
+  });
+
+  describe('function calls', () => {
+    it('should infer number for numeric functions', () => {
+      expect(inferFormulaType('round(price)')).toBe('number');
+      expect(inferFormulaType('floor(price)')).toBe('number');
+      expect(inferFormulaType('ceil(price)')).toBe('number');
+      expect(inferFormulaType('abs(price)')).toBe('number');
+      expect(inferFormulaType('sqrt(price)')).toBe('number');
+      expect(inferFormulaType('sum(items)')).toBe('number');
+      expect(inferFormulaType('avg(items)')).toBe('number');
+      expect(inferFormulaType('count(items)')).toBe('number');
+    });
+
+    it('should infer string for string functions', () => {
+      expect(inferFormulaType('concat(a, b)')).toBe('string');
+      expect(inferFormulaType('upper(name)')).toBe('string');
+      expect(inferFormulaType('lower(name)')).toBe('string');
+      expect(inferFormulaType('trim(name)')).toBe('string');
+    });
+
+    it('should infer boolean for boolean functions', () => {
+      expect(inferFormulaType('contains(name, "test")')).toBe('boolean');
+      expect(inferFormulaType('startswith(name, "a")')).toBe('boolean');
+      expect(inferFormulaType('endswith(name, "z")')).toBe('boolean');
+      expect(inferFormulaType('isnull(value)')).toBe('boolean');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should return unknown for empty expression', () => {
+      expect(inferFormulaType('')).toBe('unknown');
+      expect(inferFormulaType('  ')).toBe('unknown');
+    });
+
+    it('should return unknown for invalid expression', () => {
+      expect(inferFormulaType('price *')).toBe('unknown');
+    });
+
+    it('should handle nested paths with field types', () => {
+      const fieldTypes = { stats: 'object' as const };
+      expect(inferFormulaType('stats.damage', fieldTypes)).toBe('unknown');
     });
   });
 });
