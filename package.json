@@ -1,6 +1,6 @@
 {
   "name": "@revisium/formula",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Formula expression parser and evaluator for Revisium",
   "keywords": [
     "formula",
