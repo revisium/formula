@@ -418,8 +418,7 @@ const BUILTIN_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
     if (s !== null && typeof s === 'object') return Object.keys(s).length;
     return String(s).length;
   },
-  contains: (s: unknown, search: unknown) =>
-    String(s).includes(String(search)),
+  contains: (s: unknown, search: unknown) => String(s).includes(String(search)),
   startswith: (s: unknown, search: unknown) =>
     String(s).startsWith(String(search)),
   endswith: (s: unknown, search: unknown) => String(s).endsWith(String(search)),
@@ -454,11 +453,17 @@ const BUILTIN_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
       ? arr.reduce((a: number, b) => a + Number(b), 0) / arr.length
       : 0,
   count: (arr: unknown) => (Array.isArray(arr) ? arr.length : 0),
-  first: (arr: unknown) => (Array.isArray(arr) ? arr[0] : undefined),
-  last: (arr: unknown) =>
-    Array.isArray(arr) ? arr[arr.length - 1] : undefined,
-  join: (arr: unknown, separator?: unknown) =>
-    Array.isArray(arr) ? arr.join(separator !== undefined ? String(separator) : ',') : '',
+  first: (arr: unknown): unknown =>
+    Array.isArray(arr) ? (arr[0] as unknown) : undefined,
+  last: (arr: unknown): unknown =>
+    Array.isArray(arr) ? (arr[arr.length - 1] as unknown) : undefined,
+  join: (arr: unknown, separator?: unknown) => {
+    if (!Array.isArray(arr)) return '';
+    if (separator === undefined) return arr.join(',');
+    if (typeof separator === 'string') return arr.join(separator);
+    if (typeof separator === 'number') return arr.join(String(separator));
+    return arr.join(',');
+  },
   includes: (arr: unknown, value: unknown) =>
     Array.isArray(arr) ? arr.includes(value) : false,
   if: (condition: unknown, ifTrue: unknown, ifFalse: unknown) =>
@@ -615,7 +620,9 @@ function inferTypeFromNode(
   const [op, ...args] = node;
 
   const argTypes =
-    op === '+' ? args.map((arg) => inferTypeFromNode(arg, fieldTypes)) : undefined;
+    op === '+'
+      ? args.map((arg) => inferTypeFromNode(arg, fieldTypes))
+      : undefined;
   const operatorType = inferOperatorType(op, args.length, argTypes);
   if (operatorType !== null) return operatorType;
 

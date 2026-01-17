@@ -310,7 +310,9 @@ describe('evaluate', () => {
     });
 
     it('should concatenate string with number', () => {
-      expect(evaluate('name + age', { name: 'Age: ', age: 25 })).toBe('Age: 25');
+      expect(evaluate('name + age', { name: 'Age: ', age: 25 })).toBe(
+        'Age: 25',
+      );
     });
 
     it('should concatenate string literals', () => {
@@ -332,15 +334,15 @@ describe('evaluate', () => {
     });
 
     it('should handle numbers in concat', () => {
-      expect(evaluate('concat(name, ": ", age)', { name: 'Age', age: 25 })).toBe(
-        'Age: 25',
-      );
+      expect(
+        evaluate('concat(name, ": ", age)', { name: 'Age', age: 25 }),
+      ).toBe('Age: 25');
     });
 
     it('should handle many arguments', () => {
-      expect(evaluate('concat(a, b, c, d)', { a: '1', b: '2', c: '3', d: '4' })).toBe(
-        '1234',
-      );
+      expect(
+        evaluate('concat(a, b, c, d)', { a: '1', b: '2', c: '3', d: '4' }),
+      ).toBe('1234');
     });
   });
 
@@ -372,7 +374,9 @@ describe('evaluate', () => {
     });
 
     it('should evaluate replace()', () => {
-      expect(evaluate('replace(name, "o", "0")', { name: 'hello' })).toBe('hell0');
+      expect(evaluate('replace(name, "o", "0")', { name: 'hello' })).toBe(
+        'hell0',
+      );
     });
 
     it('should evaluate contains()', () => {
@@ -382,7 +386,9 @@ describe('evaluate', () => {
 
     it('should evaluate startswith()', () => {
       expect(evaluate('startswith(name, "hel")', { name: 'hello' })).toBe(true);
-      expect(evaluate('startswith(name, "xyz")', { name: 'hello' })).toBe(false);
+      expect(evaluate('startswith(name, "xyz")', { name: 'hello' })).toBe(
+        false,
+      );
     });
 
     it('should evaluate endswith()', () => {

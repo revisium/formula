@@ -21,7 +21,9 @@ describe('evaluate - complex expressions', () => {
 
       it('should handle *', () => {
         expect(evaluate('3 * 4', {})).toBe(12);
-        expect(evaluate('price * quantity', { price: 10, quantity: 5 })).toBe(50);
+        expect(evaluate('price * quantity', { price: 10, quantity: 5 })).toBe(
+          50,
+        );
       });
 
       it('should handle /', () => {
@@ -75,7 +77,6 @@ describe('evaluate - complex expressions', () => {
         expect(evaluate('5 != 6', {})).toBe(true);
         expect(evaluate('5 != 5', {})).toBe(false);
       });
-
     });
 
     describe('logical operators', () => {
@@ -184,7 +185,9 @@ describe('evaluate - complex expressions', () => {
     describe('string manipulations', () => {
       it('should build full name', () => {
         const context = { firstName: 'John', lastName: 'Doe' };
-        expect(evaluate('firstName + " " + lastName', context)).toBe('John Doe');
+        expect(evaluate('firstName + " " + lastName', context)).toBe(
+          'John Doe',
+        );
         expect(evaluate('concat(firstName, " ", lastName)', context)).toBe(
           'John Doe',
         );
@@ -326,8 +329,7 @@ describe('evaluate - complex expressions', () => {
 
     describe('conditional logic', () => {
       it('should handle complex conditionals', () => {
-        const expr =
-          'if(age >= 65, "Senior", if(age >= 18, "Adult", "Minor"))';
+        const expr = 'if(age >= 65, "Senior", if(age >= 18, "Adult", "Minor"))';
         expect(evaluate(expr, { age: 70 })).toBe('Senior');
         expect(evaluate(expr, { age: 30 })).toBe('Adult');
         expect(evaluate(expr, { age: 10 })).toBe('Minor');
@@ -421,10 +423,7 @@ describe('evaluate - complex expressions', () => {
     describe('real-world scenarios', () => {
       it('should calculate BMI', () => {
         const context = { weight: 70, height: 1.75 };
-        const result = evaluate(
-          'round(weight / pow(height, 2), 1)',
-          context,
-        );
+        const result = evaluate('round(weight / pow(height, 2), 1)', context);
         expect(result).toBe(22.9);
       });
 
@@ -436,7 +435,10 @@ describe('evaluate - complex expressions', () => {
           zip: '02101',
         };
         expect(
-          evaluate('concat(street, ", ", city, ", ", state, " ", zip)', context),
+          evaluate(
+            'concat(street, ", ", city, ", ", state, " ", zip)',
+            context,
+          ),
         ).toBe('123 Main St, Boston, MA 02101');
       });
 
@@ -464,9 +466,7 @@ describe('evaluate - complex expressions', () => {
 
       it('should calculate reading time', () => {
         const context = { wordCount: 1500, wordsPerMinute: 200 };
-        expect(
-          evaluate('ceil(wordCount / wordsPerMinute)', context),
-        ).toBe(8);
+        expect(evaluate('ceil(wordCount / wordsPerMinute)', context)).toBe(8);
       });
 
       it('should format currency with sign', () => {

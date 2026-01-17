@@ -85,10 +85,7 @@ export const formulaSpec: FormulaSpec = {
       { operator: '||', description: 'Logical OR' },
       { operator: '!', description: 'Logical NOT' },
     ],
-    other: [
-      'Parentheses: (a + b) * c',
-      'Unary minus: -value, a + -b',
-    ],
+    other: ['Parentheses: (a + b) * c', 'Unary minus: -value, a + -b'],
   },
 
   functions: {
@@ -150,10 +147,7 @@ export const formulaSpec: FormulaSpec = {
         description: 'Join array elements into a string',
         signature: 'join(array, separator?)',
         returnType: 'string',
-        examples: [
-          'join(tags) // "a,b,c"',
-          'join(tags, " | ") // "a | b | c"',
-        ],
+        examples: ['join(tags) // "a,b,c"', 'join(tags, " | ") // "a | b | c"'],
       },
     ],
     numeric: [
@@ -304,7 +298,9 @@ export const formulaSpec: FormulaSpec = {
         description: 'Check if an array contains a value',
         signature: 'includes(array, value)',
         returnType: 'boolean',
-        examples: ['includes(tags, "featured") // true if array contains value'],
+        examples: [
+          'includes(tags, "featured") // true if array contains value',
+        ],
       },
     ],
     array: [
