@@ -1,6 +1,5 @@
 import { FormulaFeature, FormulaMinorVersion, FormulaAnalysis } from './types';
 
-// eslint-disable-next-line sonarjs/slow-regex -- Simple alternation, no backtracking risk
 const NESTED_PATH_REGEX = /[a-zA-Z_]\w*\.[a-zA-Z_]/;
 const ARRAY_INDEX_REGEX = /\[-?\d+]/;
 const ROOT_PATH_REGEX = /(?:^|\W)\/[a-zA-Z_]/;
@@ -8,10 +7,8 @@ const CONTEXT_TOKEN_REGEX =
   /@(?:prev|next|current)\b|#(?:index|first|last|length)\b/;
 const ARRAY_FUNCTION_REGEX =
   /\b(?:sum|avg|count|first|last|join|filter|map|includes)\s*\(/i;
-const IDENTIFIER_REGEX = new RegExp(
-  String.raw`(?:^|[^.@#/\w])([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*(?:\[-?\d+]|\[\*])?(?:\.[a-zA-Z_]\w*)*)`,
-  'g',
-);
+const IDENTIFIER_REGEX =
+  /(?:^|[^.@#/\w])([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*(?:\[-?\d+]|\[\*])?(?:\.[a-zA-Z_]\w*)*)/g;
 const ROOT_PATH_DEP_REGEX = /(?:^|\W)\/([a-zA-Z_]\w*)/g;
 const RELATIVE_PATH_DEP_REGEX = /\.\.\/([a-zA-Z_]\w*)/g;
 

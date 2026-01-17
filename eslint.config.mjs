@@ -31,6 +31,8 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
+      'sonarjs/regex-complexity': ['error', { threshold: 25 }],
+      'sonarjs/slow-regex': 'off',
     },
   },
   {
