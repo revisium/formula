@@ -1,8 +1,8 @@
 import { writeFileSync } from 'fs';
-import { formulaSpec } from '../src/spec';
+import { formulaSpec } from '../src/formula-spec';
 
 const md = `<!-- AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY -->
-<!-- Edit src/spec.ts and run: npm run generate:spec -->
+<!-- Edit src/formula-spec.ts and run: npm run generate:spec -->
 
 # Formula Specification v${formulaSpec.version}
 

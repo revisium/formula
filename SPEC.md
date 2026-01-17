@@ -1,5 +1,5 @@
 <!-- AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY -->
-<!-- Edit src/spec.ts and run: npm run generate:spec -->
+<!-- Edit src/formula-spec.ts and run: npm run generate:spec -->
 
 # Formula Specification v1.1
 
