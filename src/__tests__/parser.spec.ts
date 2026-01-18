@@ -867,9 +867,9 @@ describe('evaluateWithContext', () => {
     });
 
     it('should throw error for empty expression', () => {
-      expect(() =>
-        evaluateWithContext('', { rootData: {} }),
-      ).toThrow('Empty expression');
+      expect(() => evaluateWithContext('', { rootData: {} })).toThrow(
+        'Empty expression',
+      );
     });
   });
 

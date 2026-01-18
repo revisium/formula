@@ -161,45 +161,55 @@ function extractCallArgs(argsNode: ASTNodeInternal): ASTNodeInternal[] {
   return [argsNode];
 }
 
+type CompiledFn = (ctx: Record<string, unknown>) => unknown;
+
+function compileNode(node: ASTNodeInternal): CompiledFn {
+  return compile(node) as CompiledFn;
+}
+
+function createGroupingEvaluator(fn: ASTNodeInternal): CompiledFn {
+  const compiledExpr = compileNode(fn);
+  return (ctx: Record<string, unknown>): unknown => compiledExpr(ctx);
+}
+
+function createFunctionCallEvaluator(
+  fn: ASTNodeInternal,
+  argsNode: ASTNodeInternal,
+): CompiledFn {
+  const args = extractCallArgs(argsNode);
+  const compiledArgs = args.map((arg) => compileNode(arg));
+
+  return (ctx: Record<string, unknown>): unknown => {
+    const argValues = compiledArgs.map((a) => a(ctx));
+
+    if (typeof fn === 'string') {
+      const builtinFn = BUILTIN_FUNCTIONS[fn.toLowerCase()];
+      if (builtinFn) {
+        return builtinFn(...argValues);
+      }
+    }
+
+    const fnValue = compileNode(fn)(ctx);
+    if (typeof fnValue === 'function') {
+      return (fnValue as (...args: unknown[]) => unknown)(...argValues);
+    }
+
+    const fnName = typeof fn === 'string' ? fn : String(fn);
+    throw new Error(`'${fnName}' is not a function`);
+  };
+}
+
 // Override function call operator to use builtin functions namespace
 // This allows fields to have same names as functions (e.g., max, min, round)
 // Note: () operator handles both grouping (a + b) and function calls fn(a, b)
 // - Grouping: ["()", expr] - one argument, just evaluate it
 // - Function call: ["()", fn, args] - two arguments, call function
-operator(
-  '()',
-  (fn: ASTNodeInternal, argsNode?: ASTNodeInternal) => {
-    // If no argsNode, this is grouping: (expr) - just evaluate fn
-    if (argsNode === undefined) {
-      const compiledExpr = compile(fn);
-      return (ctx: Record<string, unknown>) => compiledExpr(ctx);
-    }
-
-    // This is a function call: fn(args)
-    const args = extractCallArgs(argsNode);
-    const compiledArgs = args.map((arg) => compile(arg));
-
-    return (ctx: Record<string, unknown>) => {
-      const argValues = compiledArgs.map((a) => a(ctx));
-
-      // If fn is a string identifier, check builtins first
-      if (typeof fn === 'string') {
-        const builtinFn = BUILTIN_FUNCTIONS[fn.toLowerCase()];
-        if (builtinFn) {
-          return builtinFn(...argValues);
-        }
-      }
-
-      // Otherwise evaluate fn and call it
-      const fnValue = compile(fn)(ctx);
-      if (typeof fnValue === 'function') {
-        return fnValue(...argValues);
-      }
-
-      throw new Error(`'${fn}' is not a function`);
-    };
-  },
-);
+operator('()', (fn: ASTNodeInternal, argsNode?: ASTNodeInternal) => {
+  if (argsNode === undefined) {
+    return createGroupingEvaluator(fn);
+  }
+  return createFunctionCallEvaluator(fn, argsNode);
+});
 
 export type ASTNode = string | number | boolean | null | [string, ...ASTNode[]];
 
@@ -479,24 +489,48 @@ function detectFunctionCallFeatures(
   }
 }
 
+function detectStringFeatures(
+  node: string,
+  features: Set<FormulaFeature>,
+): void {
+  if (isContextToken(node)) {
+    features.add('context_token');
+  }
+  if (isRootPath(node)) {
+    features.add('root_path');
+    if (node.includes('.')) {
+      features.add('nested_path');
+    }
+  }
+  if (isRelativePath(node)) {
+    features.add('relative_path');
+    const withoutPrefix = node.replace(/^(\.\.\/)+/, '');
+    if (withoutPrefix.includes('.')) {
+      features.add('nested_path');
+    }
+  }
+}
+
+function detectOperatorFeatures(
+  node: [string, ...ASTNode[]],
+  features: Set<FormulaFeature>,
+): void {
+  const op = node[0];
+
+  if (op === '.') {
+    features.add('nested_path');
+  }
+  if (op === '[]') {
+    detectArrayAccessFeatures(node[2] as ASTNode, features);
+  }
+  if (op === '()') {
+    detectFunctionCallFeatures(node[1] as ASTNode, features);
+  }
+}
+
 function detectFeatures(node: ASTNode, features: Set<FormulaFeature>): void {
   if (typeof node === 'string') {
-    if (isContextToken(node)) {
-      features.add('context_token');
-    }
-    if (isRootPath(node)) {
-      features.add('root_path');
-      if (node.includes('.')) {
-        features.add('nested_path');
-      }
-    }
-    if (isRelativePath(node)) {
-      features.add('relative_path');
-      const withoutPrefix = node.replace(/^(\.\.\/)+/, '');
-      if (withoutPrefix.includes('.')) {
-        features.add('nested_path');
-      }
-    }
+    detectStringFeatures(node, features);
     return;
   }
 
@@ -504,19 +538,7 @@ function detectFeatures(node: ASTNode, features: Set<FormulaFeature>): void {
     return;
   }
 
-  const op = node[0];
-
-  if (op === '.') {
-    features.add('nested_path');
-  }
-
-  if (op === '[]') {
-    detectArrayAccessFeatures(node[2] as ASTNode, features);
-  }
-
-  if (op === '()') {
-    detectFunctionCallFeatures(node[1] as ASTNode, features);
-  }
+  detectOperatorFeatures(node as [string, ...ASTNode[]], features);
 
   for (let i = 1; i < node.length; i++) {
     detectFeatures(node[i] as ASTNode, features);
@@ -608,10 +630,7 @@ export interface EvaluateContextOptions {
 /**
  * Get value by dot-separated path from object
  */
-function getValueByPath(
-  data: Record<string, unknown>,
-  path: string,
-): unknown {
+function getValueByPath(data: Record<string, unknown>, path: string): unknown {
   const segments = path.split('.');
   let current: unknown = data;
 
