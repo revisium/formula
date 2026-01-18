@@ -123,7 +123,7 @@ function getValueByPath(data: Record<string, unknown>, path: string): unknown {
       return undefined;
     }
 
-    const bracketMatch = segment.match(/^([^[]+)\[(\d+)\]$/);
+    const bracketMatch = /^([^[]+)\[(\d+)\]$/.exec(segment);
     if (bracketMatch && bracketMatch[1] && bracketMatch[2]) {
       const fieldName = bracketMatch[1];
       const index = parseInt(bracketMatch[2], 10);
@@ -198,7 +198,10 @@ function resolveRelativePath(
 function extractRelativeBase(relativePath: string): string {
   const pathAfterParents = getPathAfterParents(relativePath);
   const baseField = extractRootField(pathAfterParents);
-  const prefix = relativePath.slice(0, relativePath.length - pathAfterParents.length);
+  const prefix = relativePath.slice(
+    0,
+    relativePath.length - pathAfterParents.length,
+  );
   return prefix + baseField;
 }
 
@@ -220,7 +223,11 @@ function buildPathReferences(
     } else if (dep.startsWith('../')) {
       const contextKey = extractRelativeBase(dep);
       if (!(contextKey in refs)) {
-        refs[contextKey] = resolveRelativePath(rootData, currentPath, contextKey);
+        refs[contextKey] = resolveRelativePath(
+          rootData,
+          currentPath,
+          contextKey,
+        );
       }
     }
   }
@@ -240,7 +247,11 @@ export function evaluateWithContext(
   }
 
   const parsed = parseFormula(trimmed);
-  const pathRefs = buildPathReferences(rootData, parsed.dependencies, currentPath);
+  const pathRefs = buildPathReferences(
+    rootData,
+    parsed.dependencies,
+    currentPath,
+  );
 
   const context: Record<string, unknown> = {
     ...rootData,

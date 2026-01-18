@@ -749,8 +749,7 @@ evaluateWithContext('amount * ../../settings.tax.rate', {
     },
     {
       name: 'Relative paths - complex nesting',
-      description:
-        'Complex scenarios with arrays inside objects inside arrays',
+      description: 'Complex scenarios with arrays inside objects inside arrays',
       code: `// Array inside object inside array
 // Structure: items[].container.subItems[]
 // currentPath: "items[0].container.subItems[0]" (3 segments)
