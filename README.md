@@ -62,24 +62,6 @@ inferFormulaType('price * quantity', { price: 'number', quantity: 'number' });
 inferFormulaType('price > 100');
 // 'boolean'
 
-// Schema validation
-import { validateFormulaAgainstSchema } from '@revisium/formula';
-
-const schema = {
-  type: 'object',
-  properties: {
-    price: { type: 'number' },
-    quantity: { type: 'number' },
-    total: { type: 'number', 'x-formula': { version: 1, expression: 'price * quantity' } }
-  }
-};
-
-validateFormulaAgainstSchema('price * quantity', 'total', schema);
-// null (valid)
-
-validateFormulaAgainstSchema('price > 100', 'total', schema);
-// { field: 'total', error: "Type mismatch: formula returns 'boolean' but field expects 'number'" }
-
 // Array item formulas with path resolution
 import { evaluateWithContext } from '@revisium/formula';
 
@@ -126,14 +108,6 @@ evaluateWithContext('price * (1 - ../discount)', {
 | `buildDependencyGraph` | Build dependency graph from `Record<string, string[]>` |
 | `detectCircularDependencies` | Detect circular dependencies in graph |
 | `getTopologicalOrder` | Get evaluation order for nodes |
-
-### Schema Validation
-
-| Function | Description |
-|----------|-------------|
-| `extractSchemaFormulas` | Extract formulas from JSON Schema |
-| `validateFormulaAgainstSchema` | Validate single formula against schema |
-| `validateSchemaFormulas` | Validate all formulas in schema |
 
 ## Path Syntax
 
