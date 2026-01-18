@@ -1,5 +1,5 @@
 import { FormulaFeature, FormulaMinorVersion } from './types';
-import { parseFormula } from './parser';
+import { parseFormula } from './ohm';
 
 export interface ParsedExpression {
   expression: string;

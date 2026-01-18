@@ -104,6 +104,6 @@
     "access": "public"
   },
   "dependencies": {
-    "subscript": "^9.2.0"
+    "ohm-js": "^17.3.0"
   }
 }

@@ -12,5 +12,4 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  noExternal: ['subscript'],
 });
