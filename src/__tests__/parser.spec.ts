@@ -5,7 +5,7 @@ import {
   evaluate,
   evaluateWithContext,
   inferFormulaType,
-} from '../parser';
+} from '../ohm';
 
 describe('parseFormula', () => {
   describe('basic expressions', () => {
@@ -257,7 +257,7 @@ describe('validateSyntax', () => {
       const result = validateSyntax('price * (1.1');
       expect(result.isValid).toBe(false);
       if (!result.isValid) {
-        expect(result.error).toContain('Unclosed');
+        expect(result.error).toContain(')');
       }
     });
 
@@ -265,7 +265,7 @@ describe('validateSyntax', () => {
       const result = validateSyntax('items[0');
       expect(result.isValid).toBe(false);
       if (!result.isValid) {
-        expect(result.error).toContain('Unclosed');
+        expect(result.error).toContain(']');
       }
     });
 
@@ -273,7 +273,7 @@ describe('validateSyntax', () => {
       const result = validateSyntax('price * 1.1)');
       expect(result.isValid).toBe(false);
       if (!result.isValid) {
-        expect(result.error).toContain('Unexpected');
+        expect(result.error).toContain('end of input');
       }
     });
 
@@ -281,7 +281,7 @@ describe('validateSyntax', () => {
       const result = validateSyntax('concat("hello, name)');
       expect(result.isValid).toBe(false);
       if (!result.isValid) {
-        expect(result.error).toContain('string');
+        expect(result.error).toContain('"');
       }
     });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { evaluate } from '../parser';
+import { evaluate } from '../ohm';
 
 describe('evaluate - complex expressions', () => {
   describe('operators', () => {

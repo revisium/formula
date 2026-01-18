@@ -1,4 +1,4 @@
-import { validateSyntax } from './parser';
+import { validateSyntax } from './ohm';
 
 export type SyntaxValidationResult =
   | { isValid: true }

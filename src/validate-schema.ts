@@ -5,7 +5,7 @@ import {
   buildDependencyGraph,
   detectCircularDependencies,
 } from './dependency-graph';
-import { inferFormulaType, FieldTypes, InferredType } from './parser';
+import { inferFormulaType, FieldTypes, InferredType } from './ohm';
 
 interface SchemaProperty {
   type?: string;

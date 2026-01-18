@@ -1,20 +1,20 @@
 export * from './types';
 
-// Parser API
+// Parser API (Ohm-based)
 export {
   parseFormula,
   validateSyntax,
   evaluate,
   evaluateWithContext,
   inferFormulaType,
-} from './parser';
+} from './ohm';
 export type {
   ASTNode,
   ParseResult,
   InferredType,
   FieldTypes,
   EvaluateContextOptions,
-} from './parser';
+} from './ohm';
 
 // Expression API (high-level)
 export { parseExpression } from './parse-formula';

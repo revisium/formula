@@ -58,7 +58,7 @@ describe('validateFormulaSyntax', () => {
       const result = validateFormulaSyntax('price * (1.1');
       expect(result.isValid).toBe(false);
       if (!result.isValid) {
-        expect(result.error).toContain('Unclosed');
+        expect(result.error).toContain(')');
       }
     });
 
@@ -66,7 +66,7 @@ describe('validateFormulaSyntax', () => {
       const result = validateFormulaSyntax('items[0');
       expect(result.isValid).toBe(false);
       if (!result.isValid) {
-        expect(result.error).toContain('Unclosed');
+        expect(result.error).toContain(']');
       }
     });
 
@@ -74,7 +74,7 @@ describe('validateFormulaSyntax', () => {
       const result = validateFormulaSyntax('price * 1.1)');
       expect(result.isValid).toBe(false);
       if (!result.isValid) {
-        expect(result.error).toContain('Unexpected');
+        expect(result.error).toContain('end of input');
       }
     });
 
@@ -82,7 +82,7 @@ describe('validateFormulaSyntax', () => {
       const result = validateFormulaSyntax('concat("hello, name)');
       expect(result.isValid).toBe(false);
       if (!result.isValid) {
-        expect(result.error).toContain('string');
+        expect(result.error).toContain('"');
       }
     });
 

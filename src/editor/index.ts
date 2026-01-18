@@ -3,13 +3,13 @@
  * Provides validation, parsing, and schema checking
  */
 
-export { parseFormula } from '../parser';
+export { parseFormula } from '../ohm';
 export { parseExpression } from '../parse-formula';
 export { validateFormulaSyntax } from '../validate-syntax';
 export { validateFormulaAgainstSchema } from '../validate-schema';
 export { extractSchemaFormulas } from '../extract-schema';
 
-export type { ParseResult, ASTNode } from '../parser';
+export type { ParseResult, ASTNode } from '../ohm';
 export type { ParsedExpression } from '../parse-formula';
 export type { SyntaxValidationResult } from '../validate-syntax';
 export type { FormulaValidationError } from '../validate-schema';
