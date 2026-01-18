@@ -99,6 +99,22 @@ function getValueByPath(data: Record<string, unknown>, path: string): unknown {
   return current;
 }
 
+function extractRootField(fieldPath: string): string {
+  const dotIndex = fieldPath.indexOf('.');
+  const bracketIndex = fieldPath.indexOf('[');
+
+  if (dotIndex === -1 && bracketIndex === -1) {
+    return fieldPath;
+  }
+  if (dotIndex === -1) {
+    return fieldPath.slice(0, bracketIndex);
+  }
+  if (bracketIndex === -1) {
+    return fieldPath.slice(0, dotIndex);
+  }
+  return fieldPath.slice(0, Math.min(dotIndex, bracketIndex));
+}
+
 function buildPathReferences(
   rootData: Record<string, unknown>,
   dependencies: string[],
@@ -108,7 +124,7 @@ function buildPathReferences(
   for (const dep of dependencies) {
     if (dep.startsWith('/')) {
       const fieldPath = dep.slice(1);
-      const rootField = fieldPath.split('.')[0] ?? fieldPath;
+      const rootField = extractRootField(fieldPath);
       const contextKey = '/' + rootField;
       if (!(contextKey in refs)) {
         refs[contextKey] = getValueByPath(rootData, rootField);

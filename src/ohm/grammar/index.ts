@@ -93,10 +93,10 @@ const grammarText = `Formula {
     | "\\\\" any             -- escape
 
   boolean
-    = "true"   -- true
-    | "false"  -- false
+    = "true" ~identifierPart   -- true
+    | "false" ~identifierPart  -- false
 
-  null = "null"
+  null = "null" ~identifierPart
 
   // Identifiers and paths
   identifier = ~reserved identifierStart identifierPart*
