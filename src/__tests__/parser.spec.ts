@@ -424,6 +424,12 @@ describe('evaluate', () => {
       expect(evaluate('items[2].price', context)).toBe(30);
     });
 
+    it('should evaluate negative array index', () => {
+      const context = { items: ['a', 'b', 'c'] };
+      expect(evaluate('items[-1]', context)).toBe('c');
+      expect(evaluate('items[-2]', context)).toBe('b');
+    });
+
     it('should evaluate multiple array accesses', () => {
       const context = { items: [{ price: 10 }, { price: 20 }] };
       expect(evaluate('items[0].price + items[1].price', context)).toBe(30);
@@ -438,6 +444,55 @@ describe('evaluate', () => {
       };
       expect(evaluate('matrix[0][0]', context)).toBe(1);
       expect(evaluate('matrix[1][1]', context)).toBe(4);
+    });
+
+    it('should evaluate wildcard access', () => {
+      const context = { items: [1, 2, 3] };
+      expect(evaluate('items[*]', context)).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe('boolean and null literals', () => {
+    it('should evaluate true literal', () => {
+      expect(evaluate('true', {})).toBe(true);
+    });
+
+    it('should evaluate false literal', () => {
+      expect(evaluate('false', {})).toBe(false);
+    });
+
+    it('should evaluate null literal', () => {
+      expect(evaluate('null', {})).toBe(null);
+    });
+
+    it('should allow identifiers starting with true/false/null', () => {
+      expect(evaluate('trueValue', { trueValue: 42 })).toBe(42);
+      expect(evaluate('falseFlag', { falseFlag: 'test' })).toBe('test');
+      expect(evaluate('nullable', { nullable: 100 })).toBe(100);
+    });
+  });
+
+  describe('context tokens', () => {
+    it('should evaluate @token', () => {
+      expect(evaluate('@index', { '@index': 5 })).toBe(5);
+    });
+
+    it('should evaluate #token', () => {
+      expect(evaluate('#count', { '#count': 10 })).toBe(10);
+    });
+  });
+
+  describe('error handling', () => {
+    it('should throw error for non-function call', () => {
+      expect(() => evaluate('notAFunction()', { notAFunction: 42 })).toThrow(
+        "'notAFunction' is not a function",
+      );
+    });
+
+    it('should throw error for expression call on non-function', () => {
+      expect(() =>
+        evaluate('obj.method()', { obj: { method: 'string' } }),
+      ).toThrow("'expression' is not a function");
     });
   });
 
@@ -854,6 +909,44 @@ describe('inferFormulaType', () => {
       const fieldTypes = { stats: 'object' as const };
       expect(inferFormulaType('stats.damage', fieldTypes)).toBe('unknown');
     });
+
+    it('should infer type for if() with matching branch types', () => {
+      expect(inferFormulaType('if(x > 0, 1, 2)')).toBe('number');
+      expect(inferFormulaType('if(x, "a", "b")')).toBe('string');
+    });
+
+    it('should return unknown for if() with mismatched types', () => {
+      expect(inferFormulaType('if(x, 1, "a")')).toBe('unknown');
+    });
+
+    it('should infer type for ternary with matching types', () => {
+      expect(inferFormulaType('x ? 1 : 2')).toBe('number');
+      expect(inferFormulaType('x ? "a" : "b"')).toBe('string');
+    });
+
+    it('should return unknown for ternary with mismatched types', () => {
+      expect(inferFormulaType('x ? 1 : "a"')).toBe('unknown');
+    });
+
+    it('should return unknown for root path', () => {
+      expect(inferFormulaType('/config')).toBe('unknown');
+    });
+
+    it('should return unknown for relative path', () => {
+      expect(inferFormulaType('../field')).toBe('unknown');
+    });
+
+    it('should return unknown for context token', () => {
+      expect(inferFormulaType('@index')).toBe('unknown');
+    });
+
+    it('should return unknown for index expression', () => {
+      expect(inferFormulaType('items[0]')).toBe('unknown');
+    });
+
+    it('should return unknown for wildcard expression', () => {
+      expect(inferFormulaType('items[*]')).toBe('unknown');
+    });
   });
 });
 
@@ -962,6 +1055,29 @@ describe('evaluateWithContext', () => {
         currentPath: 'items[0]',
       });
       expect(result).toBe(100);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle nested absolute path with dots', () => {
+      const result = evaluateWithContext('/config.nested.value + 1', {
+        rootData: { config: { nested: { value: 10 } } },
+      });
+      expect(result).toBe(11);
+    });
+
+    it('should handle null in path traversal', () => {
+      const result = evaluateWithContext('/config.missing.value', {
+        rootData: { config: null },
+      });
+      expect(result).toBeUndefined();
+    });
+
+    it('should handle relative path fallback to getByPath', () => {
+      const result = evaluateWithContext('../nested.field', {
+        rootData: { nested: { field: 42 } },
+      });
+      expect(result).toBe(42);
     });
   });
 });
