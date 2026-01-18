@@ -82,8 +82,37 @@ export interface EvaluateContextOptions {
   currentPath?: string;
 }
 
+function parseCurrentPath(currentPath: string): string[] {
+  const segments: string[] = [];
+  let current = '';
+  let inBracket = false;
+
+  for (const char of currentPath) {
+    if (char === '[') {
+      inBracket = true;
+      current += char;
+    } else if (char === ']') {
+      inBracket = false;
+      current += char;
+    } else if (char === '.' && !inBracket) {
+      if (current) {
+        segments.push(current);
+        current = '';
+      }
+    } else {
+      current += char;
+    }
+  }
+
+  if (current) {
+    segments.push(current);
+  }
+
+  return segments;
+}
+
 function getValueByPath(data: Record<string, unknown>, path: string): unknown {
-  const segments = path.split('.');
+  const segments = parseCurrentPath(path);
   let current: unknown = data;
 
   for (const segment of segments) {
@@ -93,7 +122,19 @@ function getValueByPath(data: Record<string, unknown>, path: string): unknown {
     if (typeof current !== 'object') {
       return undefined;
     }
-    current = (current as Record<string, unknown>)[segment];
+
+    const bracketMatch = /^([^[]+)\[(\d+)\]$/.exec(segment);
+    if (bracketMatch?.[1] && bracketMatch[2]) {
+      const fieldName = bracketMatch[1];
+      const index = Number.parseInt(bracketMatch[2], 10);
+      const arr = (current as Record<string, unknown>)[fieldName];
+      if (!Array.isArray(arr)) {
+        return undefined;
+      }
+      current = arr[index];
+    } else {
+      current = (current as Record<string, unknown>)[segment];
+    }
   }
 
   return current;
@@ -115,9 +156,59 @@ function extractRootField(fieldPath: string): string {
   return fieldPath.slice(0, Math.min(dotIndex, bracketIndex));
 }
 
+function countParentLevels(path: string): number {
+  let count = 0;
+  let remaining = path;
+  while (remaining.startsWith('../')) {
+    count++;
+    remaining = remaining.slice(3);
+  }
+  return count;
+}
+
+function getPathAfterParents(path: string): string {
+  return path.replace(/^(\.\.\/)+/, '');
+}
+
+function resolveRelativePath(
+  rootData: Record<string, unknown>,
+  currentPath: string | undefined,
+  relativePath: string,
+): unknown {
+  const parentLevels = countParentLevels(relativePath);
+  const fieldPath = getPathAfterParents(relativePath);
+
+  if (!currentPath) {
+    return getValueByPath(rootData, fieldPath);
+  }
+
+  const pathSegments = parseCurrentPath(currentPath);
+  const targetLevel = pathSegments.length - parentLevels;
+
+  if (targetLevel <= 0) {
+    return getValueByPath(rootData, fieldPath);
+  }
+
+  const basePath = pathSegments.slice(0, targetLevel).join('.');
+  const fullPath = basePath ? `${basePath}.${fieldPath}` : fieldPath;
+
+  return getValueByPath(rootData, fullPath);
+}
+
+function extractRelativeBase(relativePath: string): string {
+  const pathAfterParents = getPathAfterParents(relativePath);
+  const baseField = extractRootField(pathAfterParents);
+  const prefix = relativePath.slice(
+    0,
+    relativePath.length - pathAfterParents.length,
+  );
+  return prefix + baseField;
+}
+
 function buildPathReferences(
   rootData: Record<string, unknown>,
   dependencies: string[],
+  currentPath?: string,
 ): Record<string, unknown> {
   const refs: Record<string, unknown> = {};
 
@@ -130,8 +221,14 @@ function buildPathReferences(
         refs[contextKey] = getValueByPath(rootData, rootField);
       }
     } else if (dep.startsWith('../')) {
-      const fieldPath = dep.slice(3);
-      refs[dep] = getValueByPath(rootData, fieldPath);
+      const contextKey = extractRelativeBase(dep);
+      if (!(contextKey in refs)) {
+        refs[contextKey] = resolveRelativePath(
+          rootData,
+          currentPath,
+          contextKey,
+        );
+      }
     }
   }
 
@@ -142,7 +239,7 @@ export function evaluateWithContext(
   expression: string,
   options: EvaluateContextOptions,
 ): unknown {
-  const { rootData, itemData } = options;
+  const { rootData, itemData, currentPath } = options;
   const trimmed = expression.trim();
 
   if (!trimmed) {
@@ -150,7 +247,11 @@ export function evaluateWithContext(
   }
 
   const parsed = parseFormula(trimmed);
-  const pathRefs = buildPathReferences(rootData, parsed.dependencies);
+  const pathRefs = buildPathReferences(
+    rootData,
+    parsed.dependencies,
+    currentPath,
+  );
 
   const context: Record<string, unknown> = {
     ...rootData,
