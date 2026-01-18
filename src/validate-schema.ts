@@ -57,11 +57,31 @@ function resolveSubSchema(
 
 function parsePathSegments(path: string): string[] {
   const segments: string[] = [];
-  const normalized = path.replace(/\[[^\]]*\]/g, '.[]');
-  const parts = normalized.split('.').filter((p) => p.length > 0);
+  let current = '';
+  let inBracket = false;
 
-  for (const part of parts) {
-    segments.push(part);
+  for (const char of path) {
+    if (char === '[') {
+      if (current) {
+        segments.push(current);
+        current = '';
+      }
+      inBracket = true;
+    } else if (char === ']') {
+      inBracket = false;
+      segments.push('[]');
+    } else if (char === '.' && !inBracket) {
+      if (current) {
+        segments.push(current);
+        current = '';
+      }
+    } else if (!inBracket) {
+      current += char;
+    }
+  }
+
+  if (current) {
+    segments.push(current);
   }
 
   return segments;
