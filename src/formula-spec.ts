@@ -424,12 +424,53 @@ export const formulaSpec: FormulaSpec = {
       ],
       dependenciesExtracted: ['["items[0].price"]', '["items[-1].name"]'],
     },
+    {
+      name: 'root_path',
+      description:
+        'Absolute path reference starting with /. Always resolves from root data, even inside array item formulas',
+      minVersion: '1.1',
+      examples: [
+        '/taxRate',
+        '/config.tax',
+        'price * (1 + /taxRate)',
+        'price * /config.multiplier',
+      ],
+      dependenciesExtracted: ['["/taxRate"]', '["/config.tax"]'],
+    },
+    {
+      name: 'relative_path',
+      description:
+        'Relative path reference starting with ../. Resolves from parent context (root data) when inside array item formulas',
+      minVersion: '1.1',
+      examples: [
+        '../discount',
+        '../settings.multiplier',
+        'price * (1 - ../discount)',
+        'price * ../settings.multiplier',
+      ],
+      dependenciesExtracted: ['["../discount"]', '["../settings.multiplier"]'],
+    },
+    {
+      name: 'function_named_fields',
+      description:
+        'Fields can have the same name as built-in functions (max, min, sum, etc.). Built-in functions are always checked first when a function call is made',
+      minVersion: '1.0',
+      examples: [
+        'max(max, 0)',
+        'min(min, 100)',
+        'max(max - field.min, 0)',
+        'round(round * 2)',
+      ],
+    },
   ],
 
   versionDetection: [
     { feature: 'Simple refs, arithmetic, comparisons', minVersion: '1.0' },
+    { feature: 'Function-named fields (max(max, 0))', minVersion: '1.0' },
     { feature: 'Nested paths (a.b)', minVersion: '1.1' },
     { feature: 'Array index ([0], [-1])', minVersion: '1.1' },
+    { feature: 'Absolute paths (/field)', minVersion: '1.1' },
+    { feature: 'Relative paths (../field)', minVersion: '1.1' },
   ],
 
   parseResult: {
@@ -524,6 +565,59 @@ evaluate('price > 100', { price: 150 })
 
 evaluate('a + b * c', { a: 1, b: 2, c: 3 })
 // 7`,
+    },
+    {
+      name: 'Function-named fields',
+      description: 'Fields can have the same name as built-in functions',
+      code: `// Built-in functions take precedence in function calls
+evaluate('max(max, 0)', { max: 10 })
+// 10 (max() function, then max field)
+
+evaluate('max(max - field.min, 0)', { max: 100, field: { min: 20 } })
+// 80
+
+evaluate('round(round * 2)', { round: 3.7 })
+// 7
+
+// Field named "sum" doesn't conflict with sum() function
+evaluate('sum(values) + sum', { values: [1, 2, 3], sum: 10 })
+// 16`,
+    },
+    {
+      name: 'Evaluate with context (array items)',
+      description:
+        'Use evaluateWithContext() for array item formulas with path resolution',
+      code: `// Absolute path: /field always resolves from root
+evaluateWithContext('price * (1 + /taxRate)', {
+  rootData: { taxRate: 0.1, items: [{ price: 100 }] },
+  itemData: { price: 100 },
+  currentPath: 'items[0]'
+})
+// 110
+
+// Nested absolute path
+evaluateWithContext('price * /config.multiplier', {
+  rootData: { config: { multiplier: 1.5 }, items: [] },
+  itemData: { price: 100 },
+  currentPath: 'items[0]'
+})
+// 150
+
+// Relative path: ../field resolves from parent (root)
+evaluateWithContext('price * (1 - ../discount)', {
+  rootData: { discount: 0.2, items: [] },
+  itemData: { price: 100 },
+  currentPath: 'items[0]'
+})
+// 80
+
+// itemData takes precedence over rootData for same field
+evaluateWithContext('value + 10', {
+  rootData: { value: 100 },
+  itemData: { value: 50 },
+  currentPath: 'items[0]'
+})
+// 60`,
     },
   ],
 

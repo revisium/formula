@@ -6,12 +6,15 @@ interface XFormulaInput {
 interface SchemaProperty {
   type?: string;
   'x-formula'?: XFormulaInput;
+  properties?: Record<string, SchemaProperty>;
+  items?: SchemaProperty;
   [key: string]: unknown;
 }
 
 export interface JsonSchema {
   type?: string;
   properties?: Record<string, SchemaProperty>;
+  items?: SchemaProperty;
   [key: string]: unknown;
 }
 
@@ -39,18 +42,40 @@ export interface ExtractedFormula {
  */
 export function extractSchemaFormulas(schema: JsonSchema): ExtractedFormula[] {
   const formulas: ExtractedFormula[] = [];
+  extractFormulasRecursive(schema, '', formulas);
+  return formulas;
+}
+
+function extractFormulasRecursive(
+  schema: SchemaProperty | JsonSchema,
+  pathPrefix: string,
+  formulas: ExtractedFormula[],
+): void {
+  if (schema.type === 'array' && schema.items) {
+    extractFormulasRecursive(schema.items, `${pathPrefix}[]`, formulas);
+    return;
+  }
+
   const properties = schema.properties ?? {};
 
   for (const [fieldName, fieldSchema] of Object.entries(properties)) {
+    const fullPath = pathPrefix ? `${pathPrefix}.${fieldName}` : fieldName;
+
     const xFormula = fieldSchema['x-formula'];
     if (xFormula) {
       formulas.push({
-        fieldName,
+        fieldName: fullPath,
         expression: xFormula.expression,
         fieldType: fieldSchema.type ?? 'string',
       });
     }
-  }
 
-  return formulas;
+    if (fieldSchema.type === 'object' && fieldSchema.properties) {
+      extractFormulasRecursive(fieldSchema, fullPath, formulas);
+    }
+
+    if (fieldSchema.type === 'array' && fieldSchema.items) {
+      extractFormulasRecursive(fieldSchema.items, `${fullPath}[]`, formulas);
+    }
+  }
 }

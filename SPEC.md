@@ -197,8 +197,11 @@ The parser automatically detects the minimum required version:
 | Feature | Min Version |
 |---------|-------------|
 | Simple refs, arithmetic, comparisons | 1.0 |
+| Function-named fields (max(max, 0)) | 1.0 |
 | Nested paths (a.b) | 1.1 |
 | Array index ([0], [-1]) | 1.1 |
+| Absolute paths (/field) | 1.1 |
+| Relative paths (../field) | 1.1 |
 
 ## Parse Result
 
@@ -244,6 +247,60 @@ parseExpression('items[0].price + items[1].price')
 //   features: ["array_index", "nested_path"],
 //   dependencies: ["items[0].price", "items[1].price"]
 // }
+```
+
+### Function-named fields
+
+```typescript
+// Built-in functions take precedence in function calls
+evaluate('max(max, 0)', { max: 10 })
+// 10 (max() function, then max field)
+
+evaluate('max(max - field.min, 0)', { max: 100, field: { min: 20 } })
+// 80
+
+evaluate('round(round * 2)', { round: 3.7 })
+// 7
+
+// Field named "sum" doesn't conflict with sum() function
+evaluate('sum(values) + sum', { values: [1, 2, 3], sum: 10 })
+// 16
+```
+
+### Evaluate with context (array items)
+
+```typescript
+// Absolute path: /field always resolves from root
+evaluateWithContext('price * (1 + /taxRate)', {
+  rootData: { taxRate: 0.1, items: [{ price: 100 }] },
+  itemData: { price: 100 },
+  currentPath: 'items[0]'
+})
+// 110
+
+// Nested absolute path
+evaluateWithContext('price * /config.multiplier', {
+  rootData: { config: { multiplier: 1.5 }, items: [] },
+  itemData: { price: 100 },
+  currentPath: 'items[0]'
+})
+// 150
+
+// Relative path: ../field resolves from parent (root)
+evaluateWithContext('price * (1 - ../discount)', {
+  rootData: { discount: 0.2, items: [] },
+  itemData: { price: 100 },
+  currentPath: 'items[0]'
+})
+// 80
+
+// itemData takes precedence over rootData for same field
+evaluateWithContext('value + 10', {
+  rootData: { value: 100 },
+  itemData: { value: 50 },
+  currentPath: 'items[0]'
+})
+// 60
 ```
 
 
