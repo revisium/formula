@@ -440,15 +440,21 @@ export const formulaSpec: FormulaSpec = {
     {
       name: 'relative_path',
       description:
-        'Relative path reference starting with ../. Resolves from parent context (root data) when inside array item formulas',
+        'Relative path reference starting with ../. Each ../ goes up one level in the path hierarchy. Works with nested objects, arrays, and combinations. Supports accessing nested properties after the relative prefix (e.g., ../config.value)',
       minVersion: '1.1',
       examples: [
         '../discount',
-        '../settings.multiplier',
+        '../../rootRate',
+        '../config.multiplier',
         'price * (1 - ../discount)',
-        'price * ../settings.multiplier',
+        'price * ../../globalRate',
+        'price * ../settings.tax.rate',
       ],
-      dependenciesExtracted: ['["../discount"]', '["../settings.multiplier"]'],
+      dependenciesExtracted: [
+        '["../discount"]',
+        '["../../rootRate"]',
+        '["../config.multiplier"]',
+      ],
     },
     {
       name: 'function_named_fields',
@@ -618,6 +624,180 @@ evaluateWithContext('value + 10', {
   currentPath: 'items[0]'
 })
 // 60`,
+    },
+    {
+      name: 'Relative paths - path resolution',
+      description:
+        'Understanding how ../ resolves based on currentPath. Each ../ goes up one segment (object property or array element counts as one segment)',
+      code: `// Path structure explanation:
+// currentPath splits by "." (dots), keeping array indices attached to field names
+// "items[0]" = 1 segment
+// "items[0].inner" = 2 segments: ["items[0]", "inner"]
+// "container.items[0]" = 2 segments: ["container", "items[0]"]
+
+// Single ../ from array item -> goes to root
+// currentPath: "items[0]" (1 segment)
+// ../ goes up 1 level -> root
+evaluateWithContext('price * ../discount', {
+  rootData: { discount: 0.2, items: [{ price: 100 }] },
+  itemData: { price: 100 },
+  currentPath: 'items[0]'
+})
+// Resolves ../discount to root.discount = 0.2
+// Result: 100 * 0.2 = 20
+
+// Single ../ from nested object in array -> goes to array item
+// currentPath: "items[0].inner" (2 segments)
+// ../ goes up 1 level -> "items[0]"
+evaluateWithContext('price * ../itemMultiplier', {
+  rootData: { items: [{ itemMultiplier: 3, inner: { price: 10 } }] },
+  itemData: { price: 10 },
+  currentPath: 'items[0].inner'
+})
+// Resolves ../itemMultiplier to items[0].itemMultiplier = 3
+// Result: 10 * 3 = 30
+
+// Double ../../ from nested object in array -> goes to root
+// currentPath: "items[0].inner" (2 segments)
+// ../../ goes up 2 levels -> root
+evaluateWithContext('price * ../../rootRate', {
+  rootData: { rootRate: 2, items: [{ inner: { price: 5 } }] },
+  itemData: { price: 5 },
+  currentPath: 'items[0].inner'
+})
+// Resolves ../../rootRate to root.rootRate = 2
+// Result: 5 * 2 = 10`,
+    },
+    {
+      name: 'Relative paths - nested arrays',
+      description:
+        'How relative paths work with arrays inside objects and nested arrays',
+      code: `// Array inside nested object
+// currentPath: "container.items[0]" (2 segments: ["container", "items[0]"])
+// ../ goes up 1 level -> "container"
+evaluateWithContext('price * ../containerRate', {
+  rootData: {
+    container: {
+      containerRate: 4,
+      items: [{ price: 5 }]
+    }
+  },
+  itemData: { price: 5 },
+  currentPath: 'container.items[0]'
+})
+// Resolves ../containerRate to container.containerRate = 4
+// Result: 5 * 4 = 20
+
+// ../../ from array inside object -> goes to root
+// currentPath: "container.items[0]" (2 segments)
+// ../../ goes up 2 levels -> root
+evaluateWithContext('price * ../../rootVal', {
+  rootData: {
+    rootVal: 6,
+    container: { items: [{ price: 5 }] }
+  },
+  itemData: { price: 5 },
+  currentPath: 'container.items[0]'
+})
+// Resolves ../../rootVal to root.rootVal = 6
+// Result: 5 * 6 = 30
+
+// Nested arrays: items[].subItems[]
+// currentPath: "items[0].subItems[0]" (2 segments: ["items[0]", "subItems[0]"])
+// ../ goes up 1 level -> "items[0]"
+evaluateWithContext('qty * ../itemPrice', {
+  rootData: {
+    items: [{ itemPrice: 10, subItems: [{ qty: 3 }] }]
+  },
+  itemData: { qty: 3 },
+  currentPath: 'items[0].subItems[0]'
+})
+// Resolves ../itemPrice to items[0].itemPrice = 10
+// Result: 3 * 10 = 30`,
+    },
+    {
+      name: 'Relative paths - accessing nested properties',
+      description:
+        'Relative paths can include nested property access after the ../ prefix',
+      code: `// ../sibling.nested accesses a sibling with nested property
+// currentPath: "items[0].products[0]" (2 segments)
+// ../ goes to "items[0]", then accesses .config.discount
+evaluateWithContext('price * ../config.discount', {
+  rootData: {
+    items: [{
+      config: { discount: 0.9 },
+      products: [{ price: 100 }]
+    }]
+  },
+  itemData: { price: 100 },
+  currentPath: 'items[0].products[0]'
+})
+// Resolves ../config.discount to items[0].config.discount = 0.9
+// Result: 100 * 0.9 = 90
+
+// Deep nested: ../../settings.tax.rate
+evaluateWithContext('amount * ../../settings.tax.rate', {
+  rootData: {
+    settings: { tax: { rate: 0.1 } },
+    orders: [{ items: [{ amount: 200 }] }]
+  },
+  itemData: { amount: 200 },
+  currentPath: 'orders[0].items[0]'
+})
+// Resolves ../../settings.tax.rate to root.settings.tax.rate = 0.1
+// Result: 200 * 0.1 = 20`,
+    },
+    {
+      name: 'Relative paths - complex nesting',
+      description: 'Complex scenarios with arrays inside objects inside arrays',
+      code: `// Array inside object inside array
+// Structure: items[].container.subItems[]
+// currentPath: "items[0].container.subItems[0]" (3 segments)
+evaluateWithContext('val * ../containerMultiplier', {
+  rootData: {
+    items: [{
+      container: {
+        containerMultiplier: 4,
+        subItems: [{ val: 3 }]
+      }
+    }]
+  },
+  itemData: { val: 3 },
+  currentPath: 'items[0].container.subItems[0]'
+})
+// ../ goes to "items[0].container"
+// Resolves ../containerMultiplier to items[0].container.containerMultiplier = 4
+// Result: 3 * 4 = 12
+
+// ../../ from same structure -> goes to array item
+evaluateWithContext('val * ../../itemRate', {
+  rootData: {
+    items: [{
+      itemRate: 5,
+      container: { subItems: [{ val: 2 }] }
+    }]
+  },
+  itemData: { val: 2 },
+  currentPath: 'items[0].container.subItems[0]'
+})
+// ../../ goes to "items[0]"
+// Resolves ../../itemRate to items[0].itemRate = 5
+// Result: 2 * 5 = 10
+
+// ../../../ from same structure -> goes to root
+evaluateWithContext('val * ../../../rootFactor', {
+  rootData: {
+    rootFactor: 3,
+    items: [{
+      container: { subItems: [{ val: 7 }] }
+    }]
+  },
+  itemData: { val: 7 },
+  currentPath: 'items[0].container.subItems[0]'
+})
+// ../../../ goes to root
+// Resolves ../../../rootFactor to root.rootFactor = 3
+// Result: 7 * 3 = 21`,
     },
   ],
 

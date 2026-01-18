@@ -1080,4 +1080,183 @@ describe('evaluateWithContext', () => {
       expect(result).toBe(42);
     });
   });
+
+  describe('deep nested relative paths', () => {
+    it('should resolve ../../field from nested object inside array item', () => {
+      const result = evaluateWithContext('price * ../../rootRate', {
+        rootData: {
+          rootRate: 2,
+          items: [{ inner: { price: 5 } }],
+        },
+        itemData: { price: 5 },
+        currentPath: 'items[0].inner',
+      });
+      expect(result).toBe(10);
+    });
+
+    it('should resolve ../field from nested object inside array item', () => {
+      const result = evaluateWithContext('price * ../itemVal', {
+        rootData: {
+          items: [{ itemVal: 10, inner: { price: 5 } }],
+        },
+        itemData: { price: 5 },
+        currentPath: 'items[0].inner',
+      });
+      expect(result).toBe(50);
+    });
+
+    it('should resolve ../field from array inside nested object', () => {
+      const result = evaluateWithContext('price * ../containerRate', {
+        rootData: {
+          container: {
+            containerRate: 4,
+            items: [{ price: 5 }],
+          },
+        },
+        itemData: { price: 5 },
+        currentPath: 'container.items[0]',
+      });
+      expect(result).toBe(20);
+    });
+
+    it('should resolve ../../field from array inside nested object', () => {
+      const result = evaluateWithContext('price * ../../rootVal', {
+        rootData: {
+          rootVal: 6,
+          container: {
+            items: [{ price: 5 }],
+          },
+        },
+        itemData: { price: 5 },
+        currentPath: 'container.items[0]',
+      });
+      expect(result).toBe(30);
+    });
+
+    it('should resolve ../../field from deep nested non-array path', () => {
+      const result = evaluateWithContext('value * ../../factor', {
+        rootData: {
+          factor: 5,
+          nested: { deep: { value: 10 } },
+        },
+        itemData: { value: 10 },
+        currentPath: 'nested.deep',
+      });
+      expect(result).toBe(50);
+    });
+
+    it('should resolve ../../../field from triple-nested path', () => {
+      const result = evaluateWithContext('val * ../../../multiplier', {
+        rootData: {
+          multiplier: 3,
+          a: { b: { c: { val: 7 } } },
+        },
+        itemData: { val: 7 },
+        currentPath: 'a.b.c',
+      });
+      expect(result).toBe(21);
+    });
+
+    it('should resolve ../field from nested array (items[].subItems[])', () => {
+      const result = evaluateWithContext('qty * ../itemPrice', {
+        rootData: {
+          items: [
+            {
+              itemPrice: 10,
+              subItems: [{ qty: 3 }],
+            },
+          ],
+        },
+        itemData: { qty: 3 },
+        currentPath: 'items[0].subItems[0]',
+      });
+      expect(result).toBe(30);
+    });
+
+    it('should resolve ../../field from nested array to root', () => {
+      const result = evaluateWithContext('qty * ../../globalRate', {
+        rootData: {
+          globalRate: 2,
+          items: [
+            {
+              subItems: [{ qty: 5 }],
+            },
+          ],
+        },
+        itemData: { qty: 5 },
+        currentPath: 'items[0].subItems[0]',
+      });
+      expect(result).toBe(10);
+    });
+
+    it('should resolve ../field from array inside object inside array', () => {
+      const result = evaluateWithContext('val * ../containerMultiplier', {
+        rootData: {
+          items: [
+            {
+              container: {
+                containerMultiplier: 4,
+                subItems: [{ val: 3 }],
+              },
+            },
+          ],
+        },
+        itemData: { val: 3 },
+        currentPath: 'items[0].container.subItems[0]',
+      });
+      expect(result).toBe(12);
+    });
+
+    it('should resolve ../../field from array inside object inside array to parent array item', () => {
+      const result = evaluateWithContext('val * ../../itemRate', {
+        rootData: {
+          items: [
+            {
+              itemRate: 5,
+              container: {
+                subItems: [{ val: 2 }],
+              },
+            },
+          ],
+        },
+        itemData: { val: 2 },
+        currentPath: 'items[0].container.subItems[0]',
+      });
+      expect(result).toBe(10);
+    });
+
+    it('should resolve ../../../field from array inside object inside array to root', () => {
+      const result = evaluateWithContext('val * ../../../rootFactor', {
+        rootData: {
+          rootFactor: 3,
+          items: [
+            {
+              container: {
+                subItems: [{ val: 7 }],
+              },
+            },
+          ],
+        },
+        itemData: { val: 7 },
+        currentPath: 'items[0].container.subItems[0]',
+      });
+      expect(result).toBe(21);
+    });
+
+    it('should resolve ../sibling.nested from array item', () => {
+      const result = evaluateWithContext('price * ../config.discount', {
+        rootData: {
+          items: [
+            {
+              config: { discount: 0.9 },
+              products: [{ price: 100 }],
+            },
+          ],
+        },
+        itemData: { price: 100 },
+        currentPath: 'items[0].products[0]',
+      });
+      expect(result).toBeCloseTo(90);
+    });
+  });
 });
