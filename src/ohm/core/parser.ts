@@ -124,9 +124,9 @@ function getValueByPath(data: Record<string, unknown>, path: string): unknown {
     }
 
     const bracketMatch = /^([^[]+)\[(\d+)\]$/.exec(segment);
-    if (bracketMatch && bracketMatch[1] && bracketMatch[2]) {
+    if (bracketMatch?.[1] && bracketMatch[2]) {
       const fieldName = bracketMatch[1];
-      const index = parseInt(bracketMatch[2], 10);
+      const index = Number.parseInt(bracketMatch[2], 10);
       const arr = (current as Record<string, unknown>)[fieldName];
       if (!Array.isArray(arr)) {
         return undefined;
