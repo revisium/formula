@@ -33,17 +33,3 @@ export type {
   CircularDependencyResult,
   TopologicalOrderResult,
 } from './dependency-graph';
-
-// Schema extraction
-export { extractSchemaFormulas } from './extract-schema';
-export type { JsonSchema, ExtractedFormula } from './extract-schema';
-
-// Schema validation
-export {
-  validateFormulaAgainstSchema,
-  validateSchemaFormulas,
-} from './validate-schema';
-export type {
-  FormulaValidationError,
-  SchemaValidationResult,
-} from './validate-schema';
