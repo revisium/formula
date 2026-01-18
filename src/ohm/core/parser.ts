@@ -138,7 +138,7 @@ export function evaluateWithContext(
 
   const context: Record<string, unknown> = {
     ...rootData,
-    ...(itemData ?? {}),
+    ...itemData,
     ...pathRefs,
   };
 

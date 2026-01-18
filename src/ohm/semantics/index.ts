@@ -228,15 +228,21 @@ semantics.addOperation<ASTNode>('toAST', {
   },
 
   number_float(_neg, _int, _dot, _frac) {
-    return { type: 'NumberLiteral', value: parseFloat(this.sourceString) };
+    return {
+      type: 'NumberLiteral',
+      value: Number.parseFloat(this.sourceString),
+    };
   },
   number_int(_neg, _digits) {
-    return { type: 'NumberLiteral', value: parseInt(this.sourceString, 10) };
+    return {
+      type: 'NumberLiteral',
+      value: Number.parseInt(this.sourceString, 10),
+    };
   },
 
   string(_open, chars, _close) {
     const raw = chars.sourceString;
-    return { type: 'StringLiteral', value: raw.replace(/\\(.)/g, '$1') };
+    return { type: 'StringLiteral', value: raw.replaceAll(/\\(.)/g, '$1') };
   },
 
   boolean_true(_) {
@@ -498,8 +504,8 @@ const BUILTINS: Record<string, (...args: unknown[]) => unknown> = {
   endswith: (s, search) => String(s).endsWith(String(search)),
   join: (arr: unknown, sep: unknown) => {
     if (!Array.isArray(arr)) return '';
-    const separator = sep === undefined ? ',' : String(sep);
-    return arr.join(separator);
+    if (sep === undefined || sep === null) return arr.join(',');
+    return arr.join(String(sep));
   },
 
   // Numeric
@@ -517,8 +523,10 @@ const BUILTINS: Record<string, (...args: unknown[]) => unknown> = {
   abs: (n) => Math.abs(Number(n)),
   sqrt: (n) => Math.sqrt(Number(n)),
   pow: (base, exp) => Math.pow(Number(base), Number(exp)),
-  min: (...args) => (args.length === 0 ? NaN : Math.min(...args.map(Number))),
-  max: (...args) => (args.length === 0 ? NaN : Math.max(...args.map(Number))),
+  min: (...args) =>
+    args.length === 0 ? Number.NaN : Math.min(...args.map(Number)),
+  max: (...args) =>
+    args.length === 0 ? Number.NaN : Math.max(...args.map(Number)),
   log: (n) => Math.log(Number(n)),
   log10: (n) => Math.log10(Number(n)),
   exp: (n) => Math.exp(Number(n)),
@@ -728,14 +736,14 @@ semantics.addOperation<unknown>('eval(ctx)', {
   },
 
   number_float(_neg, _int, _dot, _frac) {
-    return parseFloat(this.sourceString);
+    return Number.parseFloat(this.sourceString);
   },
   number_int(_neg, _digits) {
-    return parseInt(this.sourceString, 10);
+    return Number.parseInt(this.sourceString, 10);
   },
 
   string(_open, chars, _close) {
-    return chars.sourceString.replace(/\\(.)/g, '$1');
+    return chars.sourceString.replaceAll(/\\(.)/g, '$1');
   },
 
   boolean_true(_) {
