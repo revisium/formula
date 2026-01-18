@@ -7,6 +7,13 @@ import {
 } from './dependency-graph';
 import { inferFormulaType, FieldTypes, InferredType } from './parser';
 
+interface SchemaProperty {
+  type?: string;
+  properties?: Record<string, SchemaProperty>;
+  items?: SchemaProperty;
+  [key: string]: unknown;
+}
+
 export interface FormulaValidationError {
   field: string;
   error: string;
@@ -18,7 +25,73 @@ export interface SchemaValidationResult {
   errors: FormulaValidationError[];
 }
 
-function getSchemaFields(schema: JsonSchema): Set<string> {
+function resolveSubSchema(
+  schema: JsonSchema,
+  fieldPath: string,
+): SchemaProperty | null {
+  if (!fieldPath) {
+    return schema;
+  }
+
+  const segments = parsePathSegments(fieldPath);
+  let current: SchemaProperty | JsonSchema = schema;
+
+  for (const segment of segments) {
+    if (segment === '[]') {
+      if (current.type === 'array' && current.items) {
+        current = current.items;
+      } else {
+        return null;
+      }
+    } else {
+      if (current.properties?.[segment]) {
+        current = current.properties[segment];
+      } else {
+        return null;
+      }
+    }
+  }
+
+  return current;
+}
+
+function parsePathSegments(path: string): string[] {
+  const segments: string[] = [];
+  const normalized = path.replace(/\[[^\]]*\]/g, '.[]');
+  const parts = normalized.split('.').filter((p) => p.length > 0);
+
+  for (const part of parts) {
+    segments.push(part);
+  }
+
+  return segments;
+}
+
+function getParentPath(fieldPath: string): string {
+  const lastDotIndex = fieldPath.lastIndexOf('.');
+  const lastBracketIndex = fieldPath.lastIndexOf('[');
+  const splitIndex = Math.max(lastDotIndex, lastBracketIndex);
+
+  if (splitIndex <= 0) {
+    return '';
+  }
+
+  return fieldPath.substring(0, splitIndex);
+}
+
+function getFieldName(fieldPath: string): string {
+  const lastDotIndex = fieldPath.lastIndexOf('.');
+  const lastBracketIndex = fieldPath.lastIndexOf(']');
+  const splitIndex = Math.max(lastDotIndex, lastBracketIndex);
+
+  if (splitIndex === -1) {
+    return fieldPath;
+  }
+
+  return fieldPath.substring(splitIndex + 1);
+}
+
+function getSchemaFields(schema: SchemaProperty | JsonSchema): Set<string> {
   const fields = new Set<string>();
   const properties = schema.properties ?? {};
 
@@ -29,7 +102,7 @@ function getSchemaFields(schema: JsonSchema): Set<string> {
   return fields;
 }
 
-function getSchemaFieldTypes(schema: JsonSchema): FieldTypes {
+function getSchemaFieldTypes(schema: SchemaProperty | JsonSchema): FieldTypes {
   const fieldTypes: FieldTypes = {};
   const properties = schema.properties ?? {};
 
@@ -72,53 +145,74 @@ function extractFieldRoot(dependency: string): string {
   return root || dependency;
 }
 
-export function validateFormulaAgainstSchema(
+function validateFormulaInContext(
   expression: string,
-  fieldName: string,
-  schema: JsonSchema,
+  fieldPath: string,
+  rootSchema: JsonSchema,
 ): FormulaValidationError | null {
   const syntaxResult = validateFormulaSyntax(expression);
   if (!syntaxResult.isValid) {
     return {
-      field: fieldName,
+      field: fieldPath,
       error: syntaxResult.error,
       position: syntaxResult.position,
     };
   }
 
+  const parentPath = getParentPath(fieldPath);
+  const localFieldName = getFieldName(fieldPath);
+  const contextSchema = resolveSubSchema(rootSchema, parentPath);
+
+  if (!contextSchema) {
+    return {
+      field: fieldPath,
+      error: `Cannot resolve schema context for path '${parentPath}'`,
+    };
+  }
+
   const parseResult = parseExpression(expression);
-  const schemaFields = getSchemaFields(schema);
+  const schemaFields = getSchemaFields(contextSchema);
 
   for (const dep of parseResult.dependencies) {
     const rootField = extractFieldRoot(dep);
     if (!schemaFields.has(rootField)) {
       return {
-        field: fieldName,
+        field: fieldPath,
         error: `Unknown field '${rootField}' in formula`,
       };
     }
   }
 
-  if (parseResult.dependencies.some((d) => extractFieldRoot(d) === fieldName)) {
+  if (
+    parseResult.dependencies.some((d) => extractFieldRoot(d) === localFieldName)
+  ) {
     return {
-      field: fieldName,
+      field: fieldPath,
       error: `Formula cannot reference itself`,
     };
   }
 
-  const fieldSchema = schema.properties?.[fieldName];
+  const fieldSchema = contextSchema.properties?.[localFieldName];
   const expectedType = schemaTypeToInferred(fieldSchema?.type);
-  const fieldTypes = getSchemaFieldTypes(schema);
+  const fieldTypes = getSchemaFieldTypes(contextSchema);
   const inferredType = inferFormulaType(expression, fieldTypes);
 
   if (!isTypeCompatible(inferredType, expectedType)) {
     return {
-      field: fieldName,
+      field: fieldPath,
       error: `Type mismatch: formula returns '${inferredType}' but field expects '${expectedType}'`,
     };
   }
 
   return null;
+}
+
+export function validateFormulaAgainstSchema(
+  expression: string,
+  fieldName: string,
+  schema: JsonSchema,
+): FormulaValidationError | null {
+  return validateFormulaInContext(expression, fieldName, schema);
 }
 
 export function validateSchemaFormulas(
@@ -145,8 +239,13 @@ export function validateSchemaFormulas(
   const dependencies: Record<string, string[]> = {};
   for (const formula of formulas) {
     const parseResult = parseExpression(formula.expression);
-    dependencies[formula.fieldName] =
-      parseResult.dependencies.map(extractFieldRoot);
+    const parentPath = getParentPath(formula.fieldName);
+    const prefix = parentPath ? `${parentPath}.` : '';
+
+    dependencies[formula.fieldName] = parseResult.dependencies.map((dep) => {
+      const rootField = extractFieldRoot(dep);
+      return `${prefix}${rootField}`;
+    });
   }
 
   const graph = buildDependencyGraph(dependencies);
