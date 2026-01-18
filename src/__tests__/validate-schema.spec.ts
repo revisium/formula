@@ -215,4 +215,127 @@ describe('validateSchemaFormulas', () => {
     expect(result.isValid).toBe(false);
     expect(result.errors).toHaveLength(2);
   });
+
+  describe('nested formulas', () => {
+    it('should validate formula inside nested object', () => {
+      const schema: JsonSchema = {
+        type: 'object',
+        properties: {
+          price: { type: 'number' },
+          details: {
+            type: 'object',
+            properties: {
+              basePrice: { type: 'number' },
+              tax: {
+                type: 'number',
+                'x-formula': { version: 1, expression: 'basePrice * 0.1' },
+              },
+            },
+          },
+        },
+      };
+
+      const result = validateSchemaFormulas(schema);
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should validate formula inside array items', () => {
+      const schema: JsonSchema = {
+        type: 'object',
+        properties: {
+          taxRate: { type: 'number' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                price: { type: 'number' },
+                quantity: { type: 'number' },
+                subtotal: {
+                  type: 'number',
+                  'x-formula': { version: 1, expression: 'price * quantity' },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const result = validateSchemaFormulas(schema);
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should detect invalid field in nested formula', () => {
+      const schema: JsonSchema = {
+        type: 'object',
+        properties: {
+          details: {
+            type: 'object',
+            properties: {
+              tax: {
+                type: 'number',
+                'x-formula': { version: 1, expression: 'unknownField * 0.1' },
+              },
+            },
+          },
+        },
+      };
+
+      const result = validateSchemaFormulas(schema);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]?.error).toBe(
+        "Unknown field 'unknownField' in formula",
+      );
+    });
+
+    it('should detect circular dependency in nested formulas', () => {
+      const schema: JsonSchema = {
+        type: 'object',
+        properties: {
+          nested: {
+            type: 'object',
+            properties: {
+              a: {
+                type: 'number',
+                'x-formula': { version: 1, expression: 'b + 1' },
+              },
+              b: {
+                type: 'number',
+                'x-formula': { version: 1, expression: 'a + 1' },
+              },
+            },
+          },
+        },
+      };
+
+      const result = validateSchemaFormulas(schema);
+      expect(result.isValid).toBe(false);
+      expect(result.errors[0]?.error).toContain('Circular dependency');
+    });
+
+    it('should validate type mismatch in nested formula', () => {
+      const schema: JsonSchema = {
+        type: 'object',
+        properties: {
+          details: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              count: {
+                type: 'number',
+                'x-formula': { version: 1, expression: 'upper(name)' },
+              },
+            },
+          },
+        },
+      };
+
+      const result = validateSchemaFormulas(schema);
+      expect(result.isValid).toBe(false);
+      expect(result.errors[0]?.error).toContain('Type mismatch');
+    });
+  });
 });

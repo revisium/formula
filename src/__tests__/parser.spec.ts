@@ -3,6 +3,7 @@ import {
   parseFormula,
   validateSyntax,
   evaluate,
+  evaluateWithContext,
   inferFormulaType,
 } from '../parser';
 
@@ -32,6 +33,28 @@ describe('parseFormula', () => {
       const result = parseFormula('if(x > 0, x, 0)');
       expect(result.dependencies).toContain('x');
       expect(result.dependencies).not.toContain('if');
+    });
+
+    it('should not include string literals as dependencies', () => {
+      const result = parseFormula('firstName + " " + lastName');
+      expect(result.dependencies).toContain('firstName');
+      expect(result.dependencies).toContain('lastName');
+      expect(result.dependencies).not.toContain(' ');
+      expect(result.dependencies).toHaveLength(2);
+    });
+
+    it('should handle string literals with concat', () => {
+      const result = parseFormula('concat(name, " - ", status)');
+      expect(result.dependencies).toContain('name');
+      expect(result.dependencies).toContain('status');
+      expect(result.dependencies).not.toContain(' - ');
+      expect(result.dependencies).toHaveLength(2);
+    });
+
+    it('should not include numeric literals as dependencies', () => {
+      const result = parseFormula('price * 0.1 + 100');
+      expect(result.dependencies).toContain('price');
+      expect(result.dependencies).toHaveLength(1);
     });
   });
 
@@ -112,6 +135,60 @@ describe('parseFormula', () => {
     it('should detect avg as array function', () => {
       const result = parseFormula('avg(scores)');
       expect(result.features).toContain('array_function');
+    });
+  });
+
+  describe('path references (v1.1)', () => {
+    describe('root paths (/field)', () => {
+      it('should parse root path to field', () => {
+        const result = parseFormula('/taxRate');
+        expect(result.dependencies).toContain('/taxRate');
+        expect(result.features).toContain('root_path');
+        expect(result.minVersion).toBe('1.1');
+      });
+
+      it('should parse root path in expression', () => {
+        const result = parseFormula('price * (1 + /taxRate)');
+        expect(result.dependencies).toContain('price');
+        expect(result.dependencies).toContain('/taxRate');
+        expect(result.features).toContain('root_path');
+      });
+
+      it('should parse root nested path', () => {
+        const result = parseFormula('/config.taxRate');
+        expect(result.dependencies).toContain('/config.taxRate');
+        expect(result.features).toContain('root_path');
+        expect(result.features).toContain('nested_path');
+      });
+    });
+
+    describe('relative paths (../field)', () => {
+      it('should parse relative parent path', () => {
+        const result = parseFormula('../discount');
+        expect(result.dependencies).toContain('../discount');
+        expect(result.features).toContain('relative_path');
+        expect(result.minVersion).toBe('1.1');
+      });
+
+      it('should parse relative path in expression', () => {
+        const result = parseFormula('price * ../discount');
+        expect(result.dependencies).toContain('price');
+        expect(result.dependencies).toContain('../discount');
+        expect(result.features).toContain('relative_path');
+      });
+
+      it('should parse multiple level relative path', () => {
+        const result = parseFormula('../../rootField');
+        expect(result.dependencies).toContain('../../rootField');
+        expect(result.features).toContain('relative_path');
+      });
+
+      it('should parse relative nested path', () => {
+        const result = parseFormula('../sibling.value');
+        expect(result.dependencies).toContain('../sibling.value');
+        expect(result.features).toContain('relative_path');
+        expect(result.features).toContain('nested_path');
+      });
     });
   });
 });
@@ -265,6 +342,77 @@ describe('evaluate', () => {
     it('should evaluate deep nested paths', () => {
       const context = { a: { b: { c: { d: 42 } } } };
       expect(evaluate('a.b.c.d', context)).toBe(42);
+    });
+  });
+
+  describe('path references', () => {
+    it('should evaluate absolute path /field', () => {
+      const context = { '/taxRate': 0.1, price: 100 };
+      expect(evaluate('price * (1 + /taxRate)', context)).toBeCloseTo(110);
+    });
+
+    it('should evaluate absolute nested path', () => {
+      const context = { '/config': { tax: 0.2 }, price: 50 };
+      expect(evaluate('price * (1 + /config.tax)', context)).toBe(60);
+    });
+
+    it('should evaluate relative path ../field', () => {
+      const context = { '../discount': 0.1, price: 100 };
+      expect(evaluate('price * (1 - ../discount)', context)).toBe(90);
+    });
+
+    it('should evaluate multiple level relative path', () => {
+      const context = { '../../rate': 2, value: 10 };
+      expect(evaluate('value * ../../rate', context)).toBe(20);
+    });
+  });
+
+  describe('fields named as functions', () => {
+    it('should allow field named max with max function', () => {
+      const result = evaluate('max(max, min)', { max: 100, min: 20 });
+      expect(result).toBe(100);
+    });
+
+    it('should allow field named min with min function', () => {
+      const result = evaluate('min(max, min)', { max: 100, min: 20 });
+      expect(result).toBe(20);
+    });
+
+    it('should allow field named round with round function', () => {
+      const result = evaluate('round(round * 100) / 100', { round: 3.14159 });
+      expect(result).toBe(3.14);
+    });
+
+    it('should allow complex expression with function-named fields', () => {
+      const result = evaluate('max(max - field.min, 0)', {
+        max: 100,
+        field: { min: 20 },
+      });
+      expect(result).toBe(80);
+    });
+
+    it('should allow sum field with sum function', () => {
+      const result = evaluate('sum(values) + sum', {
+        values: [10, 20, 30],
+        sum: 100,
+      });
+      expect(result).toBe(160);
+    });
+
+    it('should allow concat field with concat function', () => {
+      const result = evaluate('concat(concat, " ", suffix)', {
+        concat: 'Hello',
+        suffix: 'World',
+      });
+      expect(result).toBe('Hello World');
+    });
+
+    it('should allow length field with length function', () => {
+      const result = evaluate('length(name) + length', {
+        name: 'test',
+        length: 10,
+      });
+      expect(result).toBe(14);
     });
   });
 
@@ -705,6 +853,115 @@ describe('inferFormulaType', () => {
     it('should handle nested paths with field types', () => {
       const fieldTypes = { stats: 'object' as const };
       expect(inferFormulaType('stats.damage', fieldTypes)).toBe('unknown');
+    });
+  });
+});
+
+describe('evaluateWithContext', () => {
+  describe('basic usage', () => {
+    it('should evaluate simple expression at root level', () => {
+      const result = evaluateWithContext('price * quantity', {
+        rootData: { price: 100, quantity: 2 },
+      });
+      expect(result).toBe(200);
+    });
+
+    it('should throw error for empty expression', () => {
+      expect(() => evaluateWithContext('', { rootData: {} })).toThrow(
+        'Empty expression',
+      );
+    });
+  });
+
+  describe('absolute paths (/field)', () => {
+    it('should resolve simple absolute path', () => {
+      const result = evaluateWithContext('price * (1 + /taxRate)', {
+        rootData: { taxRate: 0.1, items: [] },
+        itemData: { price: 100 },
+        currentPath: 'items[0]',
+      });
+      expect(result).toBeCloseTo(110);
+    });
+
+    it('should resolve nested absolute path', () => {
+      const result = evaluateWithContext('price * (1 + /config.tax)', {
+        rootData: { config: { tax: 0.15 }, items: [] },
+        itemData: { price: 100 },
+        currentPath: 'items[0]',
+      });
+      expect(result).toBeCloseTo(115);
+    });
+
+    it('should handle multiple absolute paths', () => {
+      const result = evaluateWithContext('price * /markup + /shipping', {
+        rootData: { markup: 1.2, shipping: 10, items: [] },
+        itemData: { price: 100 },
+        currentPath: 'items[0]',
+      });
+      expect(result).toBe(130);
+    });
+  });
+
+  describe('relative paths (../field)', () => {
+    it('should resolve simple relative path', () => {
+      const result = evaluateWithContext('price * (1 - ../discount)', {
+        rootData: { discount: 0.2, items: [] },
+        itemData: { price: 100 },
+        currentPath: 'items[0]',
+      });
+      expect(result).toBeCloseTo(80);
+    });
+
+    it('should resolve nested relative path', () => {
+      const result = evaluateWithContext('price * ../settings.multiplier', {
+        rootData: { settings: { multiplier: 1.5 }, items: [] },
+        itemData: { price: 100 },
+        currentPath: 'items[0]',
+      });
+      expect(result).toBeCloseTo(150);
+    });
+  });
+
+  describe('itemData precedence', () => {
+    it('should prefer itemData over rootData for same field', () => {
+      const result = evaluateWithContext('value + 10', {
+        rootData: { value: 100 },
+        itemData: { value: 50 },
+        currentPath: 'items[0]',
+      });
+      expect(result).toBe(60);
+    });
+
+    it('should access rootData fields not in itemData', () => {
+      const result = evaluateWithContext('itemPrice + globalTax', {
+        rootData: { globalTax: 10 },
+        itemData: { itemPrice: 100 },
+        currentPath: 'items[0]',
+      });
+      expect(result).toBe(110);
+    });
+  });
+
+  describe('combined paths', () => {
+    it('should handle mix of absolute, relative and local fields', () => {
+      const result = evaluateWithContext(
+        'price * (1 + /taxRate) * (1 - ../discount)',
+        {
+          rootData: { taxRate: 0.1, discount: 0.2, items: [] },
+          itemData: { price: 100 },
+          currentPath: 'items[0]',
+        },
+      );
+      expect(result).toBeCloseTo(88);
+    });
+
+    it('should work with functions and path references', () => {
+      const result = evaluateWithContext('max(price, /minPrice) * ../factor', {
+        rootData: { minPrice: 50, factor: 2, items: [] },
+        itemData: { price: 30 },
+        currentPath: 'items[0]',
+      });
+      expect(result).toBe(100);
     });
   });
 });

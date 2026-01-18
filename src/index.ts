@@ -5,9 +5,16 @@ export {
   parseFormula,
   validateSyntax,
   evaluate,
+  evaluateWithContext,
   inferFormulaType,
 } from './parser';
-export type { ASTNode, ParseResult, InferredType, FieldTypes } from './parser';
+export type {
+  ASTNode,
+  ParseResult,
+  InferredType,
+  FieldTypes,
+  EvaluateContextOptions,
+} from './parser';
 
 // Expression API (high-level)
 export { parseExpression } from './parse-formula';
