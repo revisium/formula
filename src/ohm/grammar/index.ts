@@ -1,6 +1,8 @@
 import * as ohm from 'ohm-js';
 
-const grammarText = `Formula {
+// Using String.raw to avoid double-escaping backslashes in Ohm grammar
+// In Ohm grammar, we need single backslashes for escape sequences
+const grammarText = String.raw`Formula {
   Expression = Ternary
 
   // Ternary: condition ? then : else
@@ -81,16 +83,16 @@ const grammarText = `Formula {
     | "-"? digit+             -- int
 
   string
-    = "\\"" doubleStringChar* "\\""
+    = "\"" doubleStringChar* "\""
     | "'" singleStringChar* "'"
 
   doubleStringChar
-    = ~("\\"" | "\\\\") any  -- regular
-    | "\\\\" any             -- escape
+    = ~("\"" | "\\") any  -- regular
+    | "\\" any            -- escape
 
   singleStringChar
-    = ~("'" | "\\\\") any    -- regular
-    | "\\\\" any             -- escape
+    = ~("'" | "\\") any   -- regular
+    | "\\" any            -- escape
 
   boolean
     = "true" ~identifierPart   -- true

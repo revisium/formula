@@ -505,6 +505,9 @@ const BUILTINS: Record<string, (...args: unknown[]) => unknown> = {
   join: (arr: unknown, sep: unknown) => {
     if (!Array.isArray(arr)) return '';
     if (sep === undefined || sep === null) return arr.join(',');
+    if (typeof sep !== 'string' && typeof sep !== 'number') {
+      return arr.join(',');
+    }
     return arr.join(String(sep));
   },
 
