@@ -68,6 +68,7 @@ const grammarText = String.raw`Formula {
   // Primary expressions
   Primary
     = "(" Expression ")"              -- paren
+    | "[" string "]"                  -- bracketedField
     | number
     | string
     | boolean
