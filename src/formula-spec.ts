@@ -485,10 +485,7 @@ export const formulaSpec: FormulaSpec = {
         '["items-list"][0]["val"]',
         '["price-new"] * 2',
       ],
-      dependenciesExtracted: [
-        '["field-name"]',
-        "['field-name']",
-      ],
+      dependenciesExtracted: ['["field-name"]', "['field-name']"],
     },
   ],
 

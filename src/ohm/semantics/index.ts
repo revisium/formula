@@ -339,7 +339,7 @@ semantics.addOperation<string[]>('dependencies', {
     const indexNode = index.toAST() as ASTNode;
 
     if (indexNode.type === 'StringLiteral') {
-      const strValue = indexNode.value as string;
+      const strValue = indexNode.value;
       const quote = this.sourceString.includes('"') ? '"' : "'";
       if (objDeps.length === 1) {
         return [`${objDeps[0]}[${quote}${strValue}${quote}]`];
@@ -757,9 +757,7 @@ semantics.addOperation<unknown>('eval(ctx)', {
     }
     const numIdx = idx as number;
     if (numIdx < 0) {
-      return (objVal as unknown[])?.[
-        (objVal as unknown[]).length + numIdx
-      ];
+      return (objVal as unknown[])?.[(objVal as unknown[]).length + numIdx];
     }
     return (objVal as unknown[])?.[numIdx];
   },

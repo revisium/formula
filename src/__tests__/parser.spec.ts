@@ -123,7 +123,9 @@ describe('parseFormula', () => {
 
       it('should parse bracket notation with array index', () => {
         const result = parseFormula('["items-list"][0]["value-field"]');
-        expect(result.dependencies).toContain('["items-list"][0]["value-field"]');
+        expect(result.dependencies).toContain(
+          '["items-list"][0]["value-field"]',
+        );
         expect(result.features).toContain('bracket_notation');
         expect(result.features).toContain('array_index');
       });
