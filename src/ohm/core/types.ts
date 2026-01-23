@@ -4,6 +4,7 @@ export type ASTNode =
   | BooleanLiteral
   | NullLiteral
   | Identifier
+  | BracketedIdentifier
   | RootPath
   | RelativePath
   | ContextToken
@@ -12,6 +13,7 @@ export type ASTNode =
   | TernaryOp
   | CallExpression
   | MemberExpression
+  | BracketedMemberExpression
   | IndexExpression
   | WildcardExpression;
 
@@ -36,6 +38,11 @@ export interface NullLiteral {
 
 export interface Identifier {
   type: 'Identifier';
+  name: string;
+}
+
+export interface BracketedIdentifier {
+  type: 'BracketedIdentifier';
   name: string;
 }
 
@@ -82,6 +89,12 @@ export interface CallExpression {
 
 export interface MemberExpression {
   type: 'MemberExpression';
+  object: ASTNode;
+  property: string;
+}
+
+export interface BracketedMemberExpression {
+  type: 'BracketedMemberExpression';
   object: ASTNode;
   property: string;
 }

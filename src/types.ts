@@ -33,7 +33,8 @@ export type FormulaFeature =
   | 'relative_path' // ../field
   | 'root_path' // /field
   | 'context_token' // @prev, #index
-  | 'array_function'; // sum(), avg(), etc.
+  | 'array_function' // sum(), avg(), etc.
+  | 'bracket_notation'; // ["field-name"]
 
 /**
  * Result of formula syntax analysis

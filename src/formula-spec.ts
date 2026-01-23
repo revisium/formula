@@ -63,7 +63,11 @@ export const formulaSpec: FormulaSpec = {
       'Simple field: fieldName (e.g., price, quantity)',
       'Nested path: object.property (e.g., stats.damage)',
       'Array index: array[0] or array[-1] for last element',
-      'Combined: items[0].price, user.addresses[-1].city',
+      'Bracket notation: ["field-name"] for field names containing hyphens',
+      '  - Required when field name contains hyphen (-)',
+      '  - Without brackets: field-name is parsed as "field minus name"',
+      '  - With brackets: ["field-name"] references the field correctly',
+      'Combined: items[0].price, user.addresses[-1].city, obj["field-name"].value',
     ],
     arithmeticOperators: [
       { operator: '+', description: 'Addition or string concatenation' },
@@ -468,6 +472,21 @@ export const formulaSpec: FormulaSpec = {
         'round(round * 2)',
       ],
     },
+    {
+      name: 'bracket_notation',
+      description:
+        'Access fields containing hyphens using bracket notation with quotes. Required because "field-name" would be parsed as "field minus name" (subtraction). Works like JavaScript object["key"] syntax.',
+      minVersion: '1.1',
+      examples: [
+        '["field-name"]          // Without brackets: field - name (subtraction!)',
+        "['field-name']          // Single quotes also work",
+        '["field-one"]["field-two"]',
+        'obj["field-name"].value',
+        '["items-list"][0]["val"]',
+        '["price-new"] * 2',
+      ],
+      dependenciesExtracted: ['["field-name"]', "['field-name']"],
+    },
   ],
 
   versionDetection: [
@@ -477,6 +496,7 @@ export const formulaSpec: FormulaSpec = {
     { feature: 'Array index ([0], [-1])', minVersion: '1.1' },
     { feature: 'Absolute paths (/field)', minVersion: '1.1' },
     { feature: 'Relative paths (../field)', minVersion: '1.1' },
+    { feature: 'Bracket notation (["field-name"])', minVersion: '1.1' },
   ],
 
   parseResult: {

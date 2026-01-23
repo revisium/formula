@@ -87,6 +87,153 @@ describe('parseFormula', () => {
     });
   });
 
+  describe('bracket notation for special field names (v1.1)', () => {
+    describe('parsing', () => {
+      it('should parse field with hyphen using bracket notation', () => {
+        const result = parseFormula('["field-name"]');
+        expect(result.dependencies).toContain('["field-name"]');
+        expect(result.minVersion).toBe('1.1');
+        expect(result.features).toContain('bracket_notation');
+      });
+
+      it('should parse field with spaces using bracket notation', () => {
+        const result = parseFormula('["field name"]');
+        expect(result.dependencies).toContain('["field name"]');
+        expect(result.features).toContain('bracket_notation');
+      });
+
+      it('should parse bracket notation with single quotes', () => {
+        const result = parseFormula("['field-name']");
+        expect(result.dependencies).toContain("['field-name']");
+        expect(result.features).toContain('bracket_notation');
+      });
+
+      it('should parse chained bracket notation', () => {
+        const result = parseFormula('["field-one"]["field-two"]');
+        expect(result.dependencies).toContain('["field-one"]["field-two"]');
+        expect(result.features).toContain('bracket_notation');
+      });
+
+      it('should parse mixed dot and bracket notation', () => {
+        const result = parseFormula('obj["field-name"].normal');
+        expect(result.dependencies).toContain('obj["field-name"].normal');
+        expect(result.features).toContain('bracket_notation');
+        expect(result.features).toContain('nested_path');
+      });
+
+      it('should parse bracket notation with array index', () => {
+        const result = parseFormula('["items-list"][0]["value-field"]');
+        expect(result.dependencies).toContain(
+          '["items-list"][0]["value-field"]',
+        );
+        expect(result.features).toContain('bracket_notation');
+        expect(result.features).toContain('array_index');
+      });
+
+      it('should parse bracket notation in arithmetic expression', () => {
+        const result = parseFormula('["price-new"] * 3');
+        expect(result.dependencies).toContain('["price-new"]');
+        expect(result.features).toContain('bracket_notation');
+      });
+
+      it('should parse string concat with bracket notation', () => {
+        const result = parseFormula('"Label: " + ["field-value"]');
+        expect(result.dependencies).toContain('["field-value"]');
+        expect(result.dependencies).toHaveLength(1);
+      });
+
+      it('should not confuse bracket notation with array literal', () => {
+        const result = parseFormula('["field"] + regular');
+        expect(result.dependencies).toContain('["field"]');
+        expect(result.dependencies).toContain('regular');
+        expect(result.dependencies).toHaveLength(2);
+      });
+
+      it('should handle bracket notation on complex expression', () => {
+        const result = parseFormula('(cond ? a : b)["key"]');
+        expect(result.dependencies).toEqual(['cond', 'a', 'b']);
+        expect(result.features).toContain('bracket_notation');
+      });
+    });
+
+    describe('evaluation', () => {
+      it('should evaluate field with hyphen', () => {
+        const result = evaluate('["field-name"]', { 'field-name': 42 });
+        expect(result).toBe(42);
+      });
+
+      it('should evaluate field with spaces', () => {
+        const result = evaluate('["field name"]', { 'field name': 'hello' });
+        expect(result).toBe('hello');
+      });
+
+      it('should evaluate chained bracket notation', () => {
+        const result = evaluate('["obj-one"]["prop-two"]', {
+          'obj-one': { 'prop-two': 100 },
+        });
+        expect(result).toBe(100);
+      });
+
+      it('should evaluate mixed notation', () => {
+        const result = evaluate('obj["field-name"].value', {
+          obj: { 'field-name': { value: 'test' } },
+        });
+        expect(result).toBe('test');
+      });
+
+      it('should evaluate bracket notation with array index', () => {
+        const result = evaluate('["items-list"][0]["val"]', {
+          'items-list': [{ val: 1 }, { val: 2 }],
+        });
+        expect(result).toBe(1);
+      });
+
+      it('should evaluate arithmetic with bracket notation', () => {
+        const result = evaluate('["price-new"] * 2', { 'price-new': 50 });
+        expect(result).toBe(100);
+      });
+
+      it('should evaluate string concatenation with bracket notation', () => {
+        const result = evaluate('"Value: " + ["my-field"]', { 'my-field': 42 });
+        expect(result).toBe('Value: 42');
+      });
+    });
+
+    describe('security', () => {
+      it('should block __proto__ access', () => {
+        const result = evaluate('["__proto__"]', { name: 'test' });
+        expect(result).toBeUndefined();
+      });
+
+      it('should block __proto__ in chained access', () => {
+        const result = evaluate('obj["__proto__"]', { obj: { a: 1 } });
+        expect(result).toBeUndefined();
+      });
+
+      it('should allow constructor as field name', () => {
+        const result = evaluate('["constructor"]', { constructor: 'valid' });
+        expect(result).toBe('valid');
+      });
+
+      it('should allow prototype as field name', () => {
+        const result = evaluate('["prototype"]', { prototype: 'valid' });
+        expect(result).toBe('valid');
+      });
+    });
+
+    describe('edge cases', () => {
+      it('should parse field with hyphen at start', () => {
+        const result = parseFormula('["-field"]');
+        expect(result.dependencies).toContain('["-field"]');
+      });
+
+      it('should parse field with multiple hyphens', () => {
+        const result = parseFormula('["my-field-name"]');
+        expect(result.dependencies).toContain('["my-field-name"]');
+      });
+    });
+  });
+
   describe('array wildcard [*] (v1.1)', () => {
     it('should detect array wildcard feature', () => {
       const result = parseFormula('items[*].price');
@@ -99,6 +246,26 @@ describe('parseFormula', () => {
       const result = parseFormula('sum(items[*].price)');
       expect(result.features).toContain('array_wildcard');
       expect(result.features).toContain('array_function');
+    });
+
+    it('should handle wildcard on complex expression', () => {
+      const result = parseFormula('(cond ? a : b)[*]');
+      expect(result.dependencies).toEqual(['cond', 'a', 'b']);
+      expect(result.features).toContain('array_wildcard');
+    });
+  });
+
+  describe('array index edge cases', () => {
+    it('should handle variable index', () => {
+      const result = parseFormula('items[idx]');
+      expect(result.dependencies).toEqual(['items', 'idx']);
+      expect(result.features).toContain('array_index');
+    });
+
+    it('should handle array index on complex expression', () => {
+      const result = parseFormula('(cond ? a : b)[0]');
+      expect(result.dependencies).toEqual(['cond', 'a', 'b']);
+      expect(result.features).toContain('array_index');
     });
   });
 

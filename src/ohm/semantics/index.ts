@@ -5,6 +5,10 @@ import type { FormulaFeature } from '../../types';
 
 type OhmNode = NonterminalNode | TerminalNode | IterationNode;
 
+function isSafePropertyName(name: string): boolean {
+  return name !== '__proto__';
+}
+
 function childrenToAST(children: OhmNode[]): ASTNode[] {
   return children
     .filter((c): c is NonterminalNode => 'toAST' in c)
@@ -198,10 +202,18 @@ semantics.addOperation<ASTNode>('toAST', {
     };
   },
   Postfix_index(obj, _lb, index, _rb) {
+    const indexAST = index.toAST() as ASTNode;
+    if (indexAST.type === 'StringLiteral') {
+      return {
+        type: 'BracketedMemberExpression',
+        object: obj.toAST(),
+        property: indexAST.value,
+      };
+    }
     return {
       type: 'IndexExpression',
       object: obj.toAST(),
-      index: index.toAST(),
+      index: indexAST,
     };
   },
   Postfix_wildcard(obj, _lb, _star, _rb) {
@@ -222,6 +234,10 @@ semantics.addOperation<ASTNode>('toAST', {
 
   Primary_paren(_lp, expr, _rp) {
     return expr.toAST();
+  },
+  Primary_bracketedField(_lb, str, _rb) {
+    const strAST = str.toAST() as { type: 'StringLiteral'; value: string };
+    return { type: 'BracketedIdentifier', name: strAST.value };
   },
   Primary(e) {
     return e.toAST();
@@ -291,6 +307,10 @@ semantics.addOperation<string[]>('dependencies', {
     return [this.sourceString];
   },
 
+  Primary_bracketedField(_lb, _str, _rb) {
+    return [this.sourceString];
+  },
+
   rootPath(_slash, _path) {
     return [this.sourceString];
   },
@@ -317,6 +337,15 @@ semantics.addOperation<string[]>('dependencies', {
   Postfix_index(obj, _lb, index, _rb) {
     const objDeps = obj.dependencies() as string[];
     const indexNode = index.toAST() as ASTNode;
+
+    if (indexNode.type === 'StringLiteral') {
+      const strValue = indexNode.value;
+      const quote = this.sourceString.includes('"') ? '"' : "'";
+      if (objDeps.length === 1) {
+        return [`${objDeps[0]}[${quote}${strValue}${quote}]`];
+      }
+      return objDeps;
+    }
 
     const getNumericIndex = (node: ASTNode): number | null => {
       if (node.type === 'NumberLiteral') {
@@ -405,6 +434,10 @@ const ARRAY_FUNCTIONS = new Set([
 ]);
 
 semantics.addOperation<FormulaFeature[]>('features', {
+  Primary_bracketedField(_lb, _str, _rb) {
+    return ['bracket_notation'];
+  },
+
   rootPath(_slash, _path) {
     const path = this.sourceString;
     const features: FormulaFeature[] = ['root_path'];
@@ -439,6 +472,10 @@ semantics.addOperation<FormulaFeature[]>('features', {
   Postfix_index(obj, _lb, index, _rb) {
     const objFeatures = obj.features() as FormulaFeature[];
     const indexFeatures = index.features() as FormulaFeature[];
+    const indexNode = index.toAST() as ASTNode;
+    if (indexNode.type === 'StringLiteral') {
+      return [...objFeatures, ...indexFeatures, 'bracket_notation'];
+    }
     return [...objFeatures, ...indexFeatures, 'array_index'];
   },
 
@@ -710,12 +747,19 @@ semantics.addOperation<unknown>('eval(ctx)', {
     return objVal?.[prop.sourceString];
   },
   Postfix_index(obj, _lb, index, _rb) {
-    const objVal = obj.eval(this.args.ctx) as unknown[];
-    const idx = index.eval(this.args.ctx) as number;
-    if (idx < 0) {
-      return objVal?.[objVal.length + idx];
+    const objVal = obj.eval(this.args.ctx);
+    const idx = index.eval(this.args.ctx);
+    if (typeof idx === 'string') {
+      if (!isSafePropertyName(idx)) {
+        return undefined;
+      }
+      return (objVal as Record<string, unknown>)?.[idx];
     }
-    return objVal?.[idx];
+    const numIdx = idx as number;
+    if (numIdx < 0) {
+      return (objVal as unknown[])?.[(objVal as unknown[]).length + numIdx];
+    }
+    return (objVal as unknown[])?.[numIdx];
   },
   Postfix_wildcard(obj, _lb, _star, _rb) {
     return obj.eval(this.args.ctx);
@@ -733,6 +777,13 @@ semantics.addOperation<unknown>('eval(ctx)', {
 
   Primary_paren(_lp, expr, _rp) {
     return expr.eval(this.args.ctx);
+  },
+  Primary_bracketedField(_lb, str, _rb) {
+    const fieldName = str.eval(this.args.ctx) as string;
+    if (!isSafePropertyName(fieldName)) {
+      return undefined;
+    }
+    return this.args.ctx[fieldName];
   },
   Primary(e) {
     return e.eval(this.args.ctx);

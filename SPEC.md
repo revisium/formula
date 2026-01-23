@@ -121,7 +121,11 @@ Formulas are expressions that reference data fields and perform calculations. Th
 - Simple field: fieldName (e.g., price, quantity)
 - Nested path: object.property (e.g., stats.damage)
 - Array index: array[0] or array[-1] for last element
-- Combined: items[0].price, user.addresses[-1].city
+- Bracket notation: ["field-name"] for field names containing hyphens
+-   - Required when field name contains hyphen (-)
+-   - Without brackets: field-name is parsed as "field minus name"
+-   - With brackets: ["field-name"] references the field correctly
+- Combined: items[0].price, user.addresses[-1].city, obj["field-name"].value
 
 ## Supported Features
 
@@ -202,6 +206,7 @@ The parser automatically detects the minimum required version:
 | Array index ([0], [-1]) | 1.1 |
 | Absolute paths (/field) | 1.1 |
 | Relative paths (../field) | 1.1 |
+| Bracket notation (["field-name"]) | 1.1 |
 
 ## Parse Result
 
