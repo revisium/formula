@@ -124,12 +124,16 @@ function replaceNode(
         alternate: replaceNode(node.alternate, replacements),
       };
 
-    case 'CallExpression':
+    case 'CallExpression': {
+      const isSimpleFunctionCall = node.callee.type === 'Identifier';
       return {
         ...node,
-        callee: replaceNode(node.callee, replacements),
+        callee: isSimpleFunctionCall
+          ? node.callee
+          : replaceNode(node.callee, replacements),
         arguments: node.arguments.map((arg) => replaceNode(arg, replacements)),
       };
+    }
 
     case 'MemberExpression':
     case 'BracketedMemberExpression':

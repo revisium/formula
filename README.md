@@ -54,7 +54,7 @@ evaluate('max(max - field.min, 0)', { max: 100, field: { min: 20 } });
 // 80
 
 // AST serialization (inverse of parseFormula)
-import { serializeAst } from '@revisium/formula';
+import { parseFormula, serializeAst, replaceDependencies } from '@revisium/formula';
 
 serializeAst(parseFormula('(a + b) * 2').ast);
 // "(a + b) * 2"
@@ -66,7 +66,6 @@ serializeAst(parseFormula('items[*].price').ast);
 // "items[*].price"
 
 // Dependency replacement
-import { replaceDependencies } from '@revisium/formula';
 
 const ast = parseFormula('price * quantity + 10').ast;
 const newAst = replaceDependencies(ast, { price: 'cost', quantity: 'qty' });

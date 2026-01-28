@@ -240,7 +240,7 @@ describe('replaceDependencies', () => {
     it('should not replace function names', () => {
       const ast = parseFormula('max(a, b)').ast;
       const newAst = replaceDependencies(ast, { max: 'min' });
-      expect(serializeAst(newAst)).toBe('min(a, b)');
+      expect(serializeAst(newAst)).toBe('max(a, b)');
     });
 
     it('should handle replacement producing valid dependencies', () => {

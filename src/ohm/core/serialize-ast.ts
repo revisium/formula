@@ -1,5 +1,31 @@
 import type { ASTNode } from './types';
 
+function escapeDoubleQuoted(value: string): string {
+  let result = '';
+  for (const char of value) {
+    switch (char) {
+      case '\\':
+        result += String.raw`\\`;
+        break;
+      case '"':
+        result += String.raw`\"`;
+        break;
+      case '\n':
+        result += String.raw`\n`;
+        break;
+      case '\r':
+        result += String.raw`\r`;
+        break;
+      case '\t':
+        result += String.raw`\t`;
+        break;
+      default:
+        result += char;
+    }
+  }
+  return result;
+}
+
 const PRECEDENCE: Record<string, number> = {
   '||': 1,
   '&&': 2,
@@ -55,7 +81,7 @@ function serializeNode(node: ASTNode): string {
     case 'NumberLiteral':
       return String(node.value);
     case 'StringLiteral':
-      return `"${node.value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
+      return `"${escapeDoubleQuoted(node.value)}"`;
     case 'BooleanLiteral':
       return String(node.value);
     case 'NullLiteral':
@@ -63,7 +89,7 @@ function serializeNode(node: ASTNode): string {
     case 'Identifier':
       return node.name;
     case 'BracketedIdentifier':
-      return `["${node.name.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"]`;
+      return `["${escapeDoubleQuoted(node.name)}"]`;
     case 'RootPath':
       return node.path;
     case 'RelativePath':
@@ -75,13 +101,13 @@ function serializeNode(node: ASTNode): string {
     case 'UnaryOp':
       return `${node.op}${serializeUnaryArgument(node)}`;
     case 'TernaryOp':
-      return `${serializeTernaryChild(node.condition)} ? ${serializeTernaryChild(node.consequent)} : ${serializeTernaryChild(node.alternate)}`;
+      return `${serializeTernaryCondition(node.condition)} ? ${serializeNode(node.consequent)} : ${serializeNode(node.alternate)}`;
     case 'CallExpression':
       return `${serializeNode(node.callee)}(${node.arguments.map(serializeNode).join(', ')})`;
     case 'MemberExpression':
       return `${serializePostfixObject(node.object)}.${node.property}`;
     case 'BracketedMemberExpression':
-      return `${serializePostfixObject(node.object)}["${node.property.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"]`;
+      return `${serializePostfixObject(node.object)}["${escapeDoubleQuoted(node.property)}"]`;
     case 'IndexExpression':
       return `${serializePostfixObject(node.object)}[${serializeNode(node.index)}]`;
     case 'WildcardExpression':
@@ -97,8 +123,11 @@ function serializeUnaryArgument(node: ASTNode & { type: 'UnaryOp' }): string {
   return s;
 }
 
-function serializeTernaryChild(node: ASTNode): string {
+function serializeTernaryCondition(node: ASTNode): string {
   const s = serializeNode(node);
+  if (node.type === 'TernaryOp') {
+    return `(${s})`;
+  }
   return s;
 }
 

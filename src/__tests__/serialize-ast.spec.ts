@@ -251,4 +251,57 @@ describe('serializeAst', () => {
       ).toBe('price * (1 + /taxRate) * (1 - ../discount)');
     });
   });
+
+  describe('string escaping', () => {
+    it('should escape backslashes in strings', () => {
+      const ast = parseFormula(String.raw`"a\\b"`).ast;
+      expect(serializeAst(ast)).toBe(String.raw`"a\\b"`);
+    });
+
+    it('should escape quotes in strings', () => {
+      const ast = parseFormula(String.raw`"say \"hello\""`).ast;
+      expect(serializeAst(ast)).toBe(String.raw`"say \"hello\""`);
+    });
+
+    it('should escape newlines in strings (roundtrip)', () => {
+      const original = String.raw`"line1\nline2"`;
+      const ast = parseFormula(original).ast;
+      const serialized = serializeAst(ast);
+      const reparsed = parseFormula(serialized).ast;
+      expect(reparsed).toEqual(ast);
+    });
+
+    it('should escape tabs in strings (roundtrip)', () => {
+      const original = String.raw`"col1\tcol2"`;
+      const ast = parseFormula(original).ast;
+      const serialized = serializeAst(ast);
+      const reparsed = parseFormula(serialized).ast;
+      expect(reparsed).toEqual(ast);
+    });
+
+    it('should escape carriage returns in strings (roundtrip)', () => {
+      const original = String.raw`"a\rb"`;
+      const ast = parseFormula(original).ast;
+      const serialized = serializeAst(ast);
+      const reparsed = parseFormula(serialized).ast;
+      expect(reparsed).toEqual(ast);
+    });
+  });
+
+  describe('nested ternary', () => {
+    it('should wrap ternary condition that is itself a ternary', () => {
+      const ast = parseFormula('(a ? b : c) ? d : e').ast;
+      expect(serializeAst(ast)).toBe('(a ? b : c) ? d : e');
+    });
+
+    it('should not wrap ternary consequent or alternate', () => {
+      const ast = parseFormula('a ? b ? c : d : e').ast;
+      expect(serializeAst(ast)).toBe('a ? b ? c : d : e');
+    });
+
+    it('should handle deeply nested ternary in condition', () => {
+      const ast = parseFormula('((a ? b : c) ? d : e) ? f : g').ast;
+      expect(serializeAst(ast)).toBe('((a ? b : c) ? d : e) ? f : g');
+    });
+  });
 });
