@@ -7,6 +7,8 @@ export {
   evaluate,
   evaluateWithContext,
   inferFormulaType,
+  serializeAst,
+  replaceDependencies,
 } from './ohm';
 export type {
   ASTNode,

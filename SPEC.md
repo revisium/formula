@@ -484,6 +484,55 @@ evaluateWithContext('val * ../../../rootFactor', {
 ```
 
 
+## AST Utilities
+
+### serializeAst
+
+Serialize an AST back to an expression string. This is the inverse operation of `parseFormula`.
+
+```typescript
+import { parseFormula, serializeAst } from '@revisium/formula';
+
+serializeAst(parseFormula('a + b').ast)            // "a + b"
+serializeAst(parseFormula('(a + b) * 2').ast)      // "(a + b) * 2"
+serializeAst(parseFormula('a + b * 2').ast)        // "a + b * 2" (no unnecessary parentheses)
+serializeAst(parseFormula('items[*].price').ast)   // "items[*].price"
+serializeAst(parseFormula('../sibling').ast)        // "../sibling"
+serializeAst(parseFormula('/root.field').ast)       // "/root.field"
+serializeAst(parseFormula('MAX(a, b)').ast)        // "MAX(a, b)"
+```
+
+Roundtrip guarantee: `parseFormula(serializeAst(parseFormula(expr).ast)).ast` produces an equivalent AST for any valid expression.
+
+### replaceDependencies
+
+Create a new AST with dependency paths replaced. The original AST is not modified (immutable).
+
+```typescript
+import { parseFormula, serializeAst, replaceDependencies } from '@revisium/formula';
+
+const ast = parseFormula('price * quantity + 10').ast;
+
+// Simple rename
+const newAst = replaceDependencies(ast, { price: 'cost' });
+serializeAst(newAst) // "cost * quantity + 10"
+
+// Replace with different path type
+const newAst2 = replaceDependencies(ast, { price: '../cost', quantity: '../qty' });
+serializeAst(newAst2) // "../cost * ../qty + 10"
+
+// Compound paths
+const ast2 = parseFormula('items[*].price * 2').ast;
+const newAst3 = replaceDependencies(ast2, { 'items[*].price': 'products[*].cost' });
+serializeAst(newAst3) // "products[*].cost * 2"
+
+// Compound path to simple
+const newAst4 = replaceDependencies(ast2, { 'items[*].price': 'totalPrice' });
+serializeAst(newAst4) // "totalPrice * 2"
+```
+
+Keys in the replacements object match dependency paths as they appear in `parseFormula(...).dependencies`.
+
 ## Evaluation
 
 The `evaluate` function executes a formula with a given context:
