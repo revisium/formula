@@ -14,3 +14,5 @@ export type {
   InferredType,
   FieldTypes,
 } from './core/parser';
+export { serializeAst } from './core/serialize-ast';
+export { replaceDependencies } from './core/replace-dependencies';

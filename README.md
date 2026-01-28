@@ -53,6 +53,31 @@ evaluate('max(max, 0)', { max: 10 });
 evaluate('max(max - field.min, 0)', { max: 100, field: { min: 20 } });
 // 80
 
+// AST serialization (inverse of parseFormula)
+import { parseFormula, serializeAst, replaceDependencies } from '@revisium/formula';
+
+serializeAst(parseFormula('(a + b) * 2').ast);
+// "(a + b) * 2"
+
+serializeAst(parseFormula('a + b * 2').ast);
+// "a + b * 2" (no unnecessary parentheses)
+
+serializeAst(parseFormula('items[*].price').ast);
+// "items[*].price"
+
+// Dependency replacement
+
+const ast = parseFormula('price * quantity + 10').ast;
+const newAst = replaceDependencies(ast, { price: 'cost', quantity: 'qty' });
+serializeAst(newAst);
+// "cost * qty + 10"
+
+// Replace with different path types
+const ast2 = parseFormula('items[*].price * 2').ast;
+const newAst2 = replaceDependencies(ast2, { 'items[*].price': 'products[*].cost' });
+serializeAst(newAst2);
+// "products[*].cost * 2"
+
 // Type inference
 import { inferFormulaType } from '@revisium/formula';
 
@@ -93,6 +118,8 @@ evaluateWithContext('price * (1 - ../discount)', {
 | `evaluate` | Evaluate expression with context |
 | `evaluateWithContext` | Evaluate with automatic `/` and `../` path resolution |
 | `inferFormulaType` | Infer return type of expression |
+| `serializeAst` | Serialize AST back to expression string (inverse of `parseFormula`) |
+| `replaceDependencies` | Replace dependency paths in AST (returns new AST) |
 
 ### Expression API
 
