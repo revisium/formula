@@ -269,10 +269,10 @@ describe('parseFormula', () => {
     });
   });
 
-  describe('context tokens @ and # (v1.1)', () => {
+  describe('context tokens @ and # (v1.2)', () => {
     it('should detect @prev token', () => {
       const result = parseFormula('@prev.total + value');
-      expect(result.minVersion).toBe('1.1');
+      expect(result.minVersion).toBe('1.2');
       expect(result.features).toContain('context_token');
       expect(result.features).toContain('nested_path');
       expect(result.dependencies).toContain('value');

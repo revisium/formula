@@ -284,10 +284,10 @@ semantics.addOperation<ASTNode>('toAST', {
     return { type: 'RelativePath', path: this.sourceString };
   },
 
-  contextToken_at(_at, _name) {
+  contextToken_at(_at, _path) {
     return { type: 'ContextToken', name: this.sourceString };
   },
-  contextToken_hash(_hash, _name) {
+  contextToken_hash(_hash, _path) {
     return { type: 'ContextToken', name: this.sourceString };
   },
 
@@ -319,10 +319,10 @@ semantics.addOperation<string[]>('dependencies', {
     return [this.sourceString];
   },
 
-  contextToken_at(_at, _name) {
+  contextToken_at(_at, _path) {
     return [];
   },
-  contextToken_hash(_hash, _name) {
+  contextToken_hash(_hash, _path) {
     return [];
   },
 
@@ -457,10 +457,10 @@ semantics.addOperation<FormulaFeature[]>('features', {
     return features;
   },
 
-  contextToken_at(_at, _name) {
+  contextToken_at(_at, _path) {
     return ['context_token'];
   },
-  contextToken_hash(_hash, _name) {
+  contextToken_hash(_hash, _path) {
     return ['context_token'];
   },
 
@@ -844,10 +844,10 @@ semantics.addOperation<unknown>('eval(ctx)', {
     return getByPath(this.args.ctx, path);
   },
 
-  contextToken_at(_at, _name) {
+  contextToken_at(_at, _path) {
     return this.args.ctx[this.sourceString];
   },
-  contextToken_hash(_hash, _name) {
+  contextToken_hash(_hash, _path) {
     return this.args.ctx[this.sourceString];
   },
 

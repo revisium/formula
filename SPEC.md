@@ -1,7 +1,7 @@
 <!-- AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY -->
 <!-- Edit src/formula-spec.ts and run: npm run generate:spec -->
 
-# Formula Specification v1.1
+# Formula Specification v1.2
 
 This document describes the formula syntax and features supported by `@revisium/formula`.
 
@@ -207,6 +207,7 @@ The parser automatically detects the minimum required version:
 | Absolute paths (/field) | 1.1 |
 | Relative paths (../field) | 1.1 |
 | Bracket notation (["field-name"]) | 1.1 |
+| Context tokens (#index, @prev) | 1.2 |
 
 ## Parse Result
 
@@ -483,55 +484,142 @@ evaluateWithContext('val * ../../../rootFactor', {
 // Result: 7 * 3 = 21
 ```
 
-
-## AST Utilities
-
-### serializeAst
-
-Serialize an AST back to an expression string. This is the inverse operation of `parseFormula`.
+### Array context tokens - basic
 
 ```typescript
-import { parseFormula, serializeAst } from '@revisium/formula';
+// arrayContext provides position info for array item formulas
+const arrayContext = {
+  levels: [{
+    index: 2,      // current position
+    length: 5,     // array length
+    prev: { value: 20 },  // previous element
+    next: { value: 40 },  // next element
+  }]
+};
 
-serializeAst(parseFormula('a + b').ast)            // "a + b"
-serializeAst(parseFormula('(a + b) * 2').ast)      // "(a + b) * 2"
-serializeAst(parseFormula('a + b * 2').ast)        // "a + b * 2" (no unnecessary parentheses)
-serializeAst(parseFormula('items[*].price').ast)   // "items[*].price"
-serializeAst(parseFormula('../sibling').ast)        // "../sibling"
-serializeAst(parseFormula('/root.field').ast)       // "/root.field"
-serializeAst(parseFormula('MAX(a, b)').ast)        // "MAX(a, b)"
+evaluateWithContext('#index', { rootData: {}, arrayContext })
+// 2
+
+evaluateWithContext('#length', { rootData: {}, arrayContext })
+// 5
+
+evaluateWithContext('#first', { rootData: {}, arrayContext })
+// false (index !== 0)
+
+evaluateWithContext('#last', { rootData: {}, arrayContext })
+// false (index !== length - 1)
+
+evaluateWithContext('@prev.value', { rootData: {}, arrayContext })
+// 20
+
+evaluateWithContext('@next.value', { rootData: {}, arrayContext })
+// 40
+
+// At first element, @prev is null
+evaluateWithContext('@prev', {
+  rootData: {},
+  arrayContext: { levels: [{ index: 0, length: 3, prev: null, next: {} }] }
+})
+// null
 ```
 
-Roundtrip guarantee: `parseFormula(serializeAst(parseFormula(expr).ast)).ast` produces an equivalent AST for any valid expression.
-
-### replaceDependencies
-
-Create a new AST with dependency paths replaced. The original AST is not modified (immutable).
+### Array context tokens - nested arrays
 
 ```typescript
-import { parseFormula, serializeAst, replaceDependencies } from '@revisium/formula';
+// For nested arrays like orders[].items[]:
+// levels[0] = innermost (items), levels[1] = parent (orders)
+const arrayContext = {
+  levels: [
+    { index: 1, length: 3, prev: {}, next: {} },  // items[1]
+    { index: 2, length: 5, prev: {}, next: {} },  // orders[2]
+  ]
+};
 
-const ast = parseFormula('price * quantity + 10').ast;
+evaluateWithContext('#index', { rootData: {}, arrayContext })
+// 1 (current item index)
 
-// Simple rename
-const newAst = replaceDependencies(ast, { price: 'cost' });
-serializeAst(newAst) // "cost * quantity + 10"
+evaluateWithContext('#parent.index', { rootData: {}, arrayContext })
+// 2 (parent order index)
 
-// Replace with different path type
-const newAst2 = replaceDependencies(ast, { price: '../cost', quantity: '../qty' });
-serializeAst(newAst2) // "../cost * ../qty + 10"
+evaluateWithContext('#parent.length', { rootData: {}, arrayContext })
+// 5 (number of orders)
 
-// Compound paths
-const ast2 = parseFormula('items[*].price * 2').ast;
-const newAst3 = replaceDependencies(ast2, { 'items[*].price': 'products[*].cost' });
-serializeAst(newAst3) // "products[*].cost * 2"
+// #root.* is shortcut for topmost array (same as #parent.* for 2 levels)
+evaluateWithContext('#root.index', { rootData: {}, arrayContext })
+// 2
 
-// Compound path to simple
-const newAst4 = replaceDependencies(ast2, { 'items[*].price': 'totalPrice' });
-serializeAst(newAst4) // "totalPrice * 2"
+// For 3+ levels, #root always points to outermost array
+const threeLevel = {
+  levels: [
+    { index: 0, length: 2, prev: null, next: {} },  // innermost
+    { index: 1, length: 3, prev: {}, next: {} },    // middle
+    { index: 2, length: 4, prev: {}, next: null },  // outermost (root)
+  ]
+};
+
+evaluateWithContext('#parent.parent.index', { rootData: {}, arrayContext: threeLevel })
+// 2 (outermost)
+
+evaluateWithContext('#root.index', { rootData: {}, arrayContext: threeLevel })
+// 2 (same as #parent.parent.index)
 ```
 
-Keys in the replacements object match dependency paths as they appear in `parseFormula(...).dependencies`.
+### Array context tokens - practical examples
+
+```typescript
+// Running total pattern (like Excel)
+// rows[].runningTotal = if(#first, value, @prev.runningTotal + value)
+const rows = [
+  { value: 10 },
+  { value: 20 },
+  { value: 15 },
+];
+
+// For rows[2]:
+evaluateWithContext('if(#first, value, @prev.value + value)', {
+  rootData: {},
+  itemData: { value: 15 },
+  arrayContext: {
+    levels: [{
+      index: 2,
+      length: 3,
+      prev: { value: 20 },  // Note: use non-computed field from prev
+      next: null,
+    }]
+  }
+})
+// 35 (20 + 15)
+
+// Nested numbering like "1.1", "1.2", "2.1"
+// sections[].questions[].number
+evaluateWithContext('concat(#parent.index + 1, ".", #index + 1)', {
+  rootData: {},
+  arrayContext: {
+    levels: [
+      { index: 1, length: 3, prev: {}, next: {} },  // question index
+      { index: 0, length: 2, prev: null, next: {} }, // section index
+    ]
+  }
+})
+// "1.2"
+
+// Delta from previous
+// measurements[].delta = if(#first, 0, value - @prev.value)
+evaluateWithContext('if(#first, 0, value - @prev.value)', {
+  rootData: {},
+  itemData: { value: 105 },
+  arrayContext: {
+    levels: [{
+      index: 1,
+      length: 3,
+      prev: { value: 100 },
+      next: { value: 102 },
+    }]
+  }
+})
+// 5
+```
+
 
 ## Evaluation
 
@@ -553,6 +641,60 @@ evaluate('price > 100', { price: 150 })
 evaluate('a + b * c', { a: 1, b: 2, c: 3 })
 // 7
 ```
+
+## AST Utilities
+
+### serializeAst
+
+Convert an AST back to a formula string. Useful for debugging or displaying parsed formulas.
+
+```typescript
+serializeAst(ast: ASTNode): string
+```
+
+```typescript
+import { parseFormula, serializeAst } from '@revisium/formula';
+
+const { ast } = parseFormula('price * (1 + taxRate)');
+serializeAst(ast)
+// "price * (1 + taxRate)"
+
+// After modifying AST nodes, serialize back to string
+const { ast: ast2 } = parseFormula('a + b');
+serializeAst(ast2)
+// "a + b"
+```
+
+### replaceDependencies
+
+Replace field references in an AST with new names. Useful for renaming fields or migrating formulas.
+
+```typescript
+replaceDependencies(ast: ASTNode, replacements: Record<string, string>): ASTNode
+```
+
+```typescript
+import { parseFormula, replaceDependencies, serializeAst } from '@revisium/formula';
+
+// Rename a field in a formula
+const { ast } = parseFormula('oldPrice * quantity');
+const newAst = replaceDependencies(ast, { oldPrice: 'price' });
+serializeAst(newAst)
+// "price * quantity"
+
+// Rename multiple fields
+const { ast: ast2 } = parseFormula('a + b * c');
+const newAst2 = replaceDependencies(ast2, { a: 'x', b: 'y', c: 'z' });
+serializeAst(newAst2)
+// "x + y * z"
+
+// Works with nested paths
+const { ast: ast3 } = parseFormula('stats.damage * multiplier');
+const newAst3 = replaceDependencies(ast3, { 'stats.damage': 'stats.power' });
+serializeAst(newAst3)
+// "stats.power * multiplier"
+```
+
 
 ## Schema Usage
 

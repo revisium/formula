@@ -23,7 +23,7 @@ describe('parseExpression', () => {
   it('should parse expression with context tokens', () => {
     const result = parseExpression('if(#first, value, @prev.total + value)');
 
-    expect(result.minVersion).toBe('1.1');
+    expect(result.minVersion).toBe('1.2');
     expect(result.features).toContain('context_token');
   });
 

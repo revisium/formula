@@ -1,4 +1,4 @@
-import { defineConfig } from 'tsup';
+import { defineConfig } from 'tsdown';
 
 export default defineConfig({
   entry: {
@@ -7,8 +7,8 @@ export default defineConfig({
     'formula-spec': 'src/formula-spec.ts',
   },
   format: ['cjs', 'esm'],
-  dts: true,
-  splitting: true,
+  dts: false,
+  splitting: false,
   sourcemap: true,
   clean: true,
   treeshake: true,

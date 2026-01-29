@@ -1,4 +1,16 @@
-export * from './types';
+export type {
+  XFormula,
+  FormulaMinorVersion,
+  FormulaFeature,
+  FormulaAnalysis,
+  PathSegment,
+  ParsedPath,
+  PathValidationResult,
+  FormulaContext,
+  FormulaResult,
+  ArrayLevelContext,
+  ArrayContext,
+} from './types';
 
 // Parser API (Ohm-based)
 export {
