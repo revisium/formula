@@ -21,7 +21,7 @@ export interface XFormula {
 /**
  * Detected formula minor version based on syntax features
  */
-export type FormulaMinorVersion = '1.0' | '1.1';
+export type FormulaMinorVersion = '1.0' | '1.1' | '1.2';
 
 /**
  * Features detected in formula expression
@@ -94,3 +94,26 @@ export interface FormulaContext {
  * Formula evaluation result
  */
 export type FormulaResult = number | string | boolean | null;
+
+/**
+ * Array level context for a single level in the array hierarchy
+ */
+export interface ArrayLevelContext {
+  /** Current index in this array (0-based) */
+  index: number;
+  /** Length of this array */
+  length: number;
+  /** Previous element in this array (null if first) */
+  prev: unknown;
+  /** Next element in this array (null if last) */
+  next: unknown;
+}
+
+/**
+ * Full array context for formula evaluation
+ * Contains context for each level of array nesting
+ */
+export interface ArrayContext {
+  /** Array levels from innermost (index 0) to outermost (root) */
+  levels: ArrayLevelContext[];
+}

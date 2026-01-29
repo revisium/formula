@@ -165,6 +165,25 @@ The \`evaluate\` function executes a formula with a given context:
 ${formulaSpec.apiExamples.find((e) => e.name === 'Evaluate expressions')?.code}
 \`\`\`
 
+## AST Utilities
+
+${formulaSpec.astUtilities
+  .map(
+    (u) => `### ${u.name}
+
+${u.description}
+
+\`\`\`typescript
+${u.signature}
+\`\`\`
+
+\`\`\`typescript
+${u.code}
+\`\`\`
+`,
+  )
+  .join('\n')}
+
 ## Schema Usage
 
 Formula fields use the following structure:

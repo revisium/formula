@@ -3,6 +3,16 @@ import { semantics } from '../semantics';
 import type { ASTNode } from './types';
 import type { FormulaFeature, FormulaMinorVersion } from '../../types';
 
+function detectMinVersion(features: FormulaFeature[]): FormulaMinorVersion {
+  if (features.includes('context_token')) {
+    return '1.2';
+  }
+  if (features.length > 0) {
+    return '1.1';
+  }
+  return '1.0';
+}
+
 export interface ParseResult {
   ast: ASTNode;
   dependencies: string[];
@@ -26,7 +36,7 @@ export function parseFormula(expression: string): ParseResult {
   const dependencies = [...new Set(adapter.dependencies() as string[])];
   const allFeatures = adapter.features() as FormulaFeature[];
   const features = [...new Set(allFeatures)];
-  const minVersion: FormulaMinorVersion = features.length > 0 ? '1.1' : '1.0';
+  const minVersion: FormulaMinorVersion = detectMinVersion(features);
 
   return { ast, dependencies, features, minVersion };
 }
@@ -76,10 +86,13 @@ export function evaluate(
   return semantics(matchResult).eval(safeContext);
 }
 
+import type { ArrayContext, ArrayLevelContext } from '../../types';
+
 export interface EvaluateContextOptions {
   rootData: Record<string, unknown>;
   itemData?: Record<string, unknown>;
   currentPath?: string;
+  arrayContext?: ArrayContext;
 }
 
 function parseCurrentPath(currentPath: string): string[] {
@@ -205,6 +218,61 @@ function extractRelativeBase(relativePath: string): string {
   return prefix + baseField;
 }
 
+function buildArrayContextTokens(
+  arrayContext: ArrayContext | undefined,
+): Record<string, unknown> {
+  if (!arrayContext || arrayContext.levels.length === 0) {
+    return {};
+  }
+
+  const tokens: Record<string, unknown> = {};
+  const levels = arrayContext.levels;
+
+  const buildLevelTokens = (level: ArrayLevelContext, prefix: string): void => {
+    tokens[`${prefix}index`] = level.index;
+    tokens[`${prefix}length`] = level.length;
+    tokens[`${prefix}first`] = level.index === 0;
+    tokens[`${prefix}last`] = level.index === level.length - 1;
+  };
+
+  const buildNeighborTokens = (
+    level: ArrayLevelContext,
+    prefix: string,
+  ): void => {
+    tokens[`${prefix}prev`] = level.prev;
+    tokens[`${prefix}next`] = level.next;
+  };
+
+  if (levels[0]) {
+    buildLevelTokens(levels[0], '#');
+    buildNeighborTokens(levels[0], '@');
+  }
+
+  let parentPrefix = '#parent.';
+  let atParentPrefix = '@parent.';
+  for (let i = 1; i < levels.length; i++) {
+    const level = levels[i];
+    if (level) {
+      buildLevelTokens(level, parentPrefix);
+      buildNeighborTokens(level, atParentPrefix);
+    }
+    parentPrefix = '#parent.' + parentPrefix.slice(1);
+    atParentPrefix = '@parent.' + atParentPrefix.slice(1);
+  }
+
+  const rootLevel = levels[levels.length - 1];
+  if (rootLevel) {
+    tokens['#root.index'] = rootLevel.index;
+    tokens['#root.length'] = rootLevel.length;
+    tokens['#root.first'] = rootLevel.index === 0;
+    tokens['#root.last'] = rootLevel.index === rootLevel.length - 1;
+    tokens['@root.prev'] = rootLevel.prev;
+    tokens['@root.next'] = rootLevel.next;
+  }
+
+  return tokens;
+}
+
 function buildPathReferences(
   rootData: Record<string, unknown>,
   dependencies: string[],
@@ -239,7 +307,7 @@ export function evaluateWithContext(
   expression: string,
   options: EvaluateContextOptions,
 ): unknown {
-  const { rootData, itemData, currentPath } = options;
+  const { rootData, itemData, currentPath, arrayContext } = options;
   const trimmed = expression.trim();
 
   if (!trimmed) {
@@ -252,11 +320,13 @@ export function evaluateWithContext(
     parsed.dependencies,
     currentPath,
   );
+  const arrayTokens = buildArrayContextTokens(arrayContext);
 
   const context: Record<string, unknown> = {
     ...rootData,
     ...itemData,
     ...pathRefs,
+    ...arrayTokens,
   };
 
   return evaluate(trimmed, context);

@@ -36,6 +36,12 @@ export interface FormulaSpec {
     description: string;
     interface: string;
   };
+  astUtilities: {
+    name: string;
+    description: string;
+    signature: string;
+    code: string;
+  }[];
   examples: {
     expression: string;
     description: string;
@@ -54,7 +60,7 @@ export interface FormulaSpec {
 }
 
 export const formulaSpec: FormulaSpec = {
-  version: '1.1',
+  version: '1.2',
   description:
     'Formula expressions for computed fields. Formulas reference other fields and calculate values automatically.',
 
@@ -487,6 +493,26 @@ export const formulaSpec: FormulaSpec = {
       ],
       dependenciesExtracted: ['["field-name"]', "['field-name']"],
     },
+    {
+      name: 'context_token',
+      description:
+        'Array context tokens provide information about current position and neighboring elements when evaluating formulas inside arrays. # prefix for scalar metadata (number/boolean), @ prefix for object references.',
+      minVersion: '1.2',
+      examples: [
+        '#index                  // Current array index (0-based)',
+        '#length                 // Array length',
+        '#first                  // true if first element',
+        '#last                   // true if last element',
+        '@prev                   // Previous element (null if first)',
+        '@next                   // Next element (null if last)',
+        '#parent.index           // Index in parent array (nested arrays)',
+        '#parent.length          // Length of parent array',
+        '#root.index             // Index in topmost array',
+        '@root.prev              // Previous element in topmost array',
+        'if(#first, value, @prev.total + value)  // Running total',
+        'concat(#parent.index + 1, ".", #index + 1)  // "1.1", "1.2" numbering',
+      ],
+    },
   ],
 
   versionDetection: [
@@ -497,6 +523,7 @@ export const formulaSpec: FormulaSpec = {
     { feature: 'Absolute paths (/field)', minVersion: '1.1' },
     { feature: 'Relative paths (../field)', minVersion: '1.1' },
     { feature: 'Bracket notation (["field-name"])', minVersion: '1.1' },
+    { feature: 'Context tokens (#index, @prev)', minVersion: '1.2' },
   ],
 
   parseResult: {
@@ -509,6 +536,51 @@ export const formulaSpec: FormulaSpec = {
   minVersion: string;     // Minimum required version ("1.0" or "1.1")
 }`,
   },
+
+  astUtilities: [
+    {
+      name: 'serializeAst',
+      description:
+        'Convert an AST back to a formula string. Useful for debugging or displaying parsed formulas.',
+      signature: 'serializeAst(ast: ASTNode): string',
+      code: `import { parseFormula, serializeAst } from '@revisium/formula';
+
+const { ast } = parseFormula('price * (1 + taxRate)');
+serializeAst(ast)
+// "price * (1 + taxRate)"
+
+// After modifying AST nodes, serialize back to string
+const { ast: ast2 } = parseFormula('a + b');
+serializeAst(ast2)
+// "a + b"`,
+    },
+    {
+      name: 'replaceDependencies',
+      description:
+        'Replace field references in an AST with new names. Useful for renaming fields or migrating formulas.',
+      signature:
+        'replaceDependencies(ast: ASTNode, replacements: Record<string, string>): ASTNode',
+      code: `import { parseFormula, replaceDependencies, serializeAst } from '@revisium/formula';
+
+// Rename a field in a formula
+const { ast } = parseFormula('oldPrice * quantity');
+const newAst = replaceDependencies(ast, { oldPrice: 'price' });
+serializeAst(newAst)
+// "price * quantity"
+
+// Rename multiple fields
+const { ast: ast2 } = parseFormula('a + b * c');
+const newAst2 = replaceDependencies(ast2, { a: 'x', b: 'y', c: 'z' });
+serializeAst(newAst2)
+// "x + y * z"
+
+// Works with nested paths
+const { ast: ast3 } = parseFormula('stats.damage * multiplier');
+const newAst3 = replaceDependencies(ast3, { 'stats.damage': 'stats.power' });
+serializeAst(newAst3)
+// "stats.power * multiplier"`,
+    },
+  ],
 
   examples: [
     {
@@ -818,6 +890,142 @@ evaluateWithContext('val * ../../../rootFactor', {
 // ../../../ goes to root
 // Resolves ../../../rootFactor to root.rootFactor = 3
 // Result: 7 * 3 = 21`,
+    },
+    {
+      name: 'Array context tokens - basic',
+      description:
+        'Use #index, #length, #first, #last for position info; @prev, @next for neighbor access',
+      code: `// arrayContext provides position info for array item formulas
+const arrayContext = {
+  levels: [{
+    index: 2,      // current position
+    length: 5,     // array length
+    prev: { value: 20 },  // previous element
+    next: { value: 40 },  // next element
+  }]
+};
+
+evaluateWithContext('#index', { rootData: {}, arrayContext })
+// 2
+
+evaluateWithContext('#length', { rootData: {}, arrayContext })
+// 5
+
+evaluateWithContext('#first', { rootData: {}, arrayContext })
+// false (index !== 0)
+
+evaluateWithContext('#last', { rootData: {}, arrayContext })
+// false (index !== length - 1)
+
+evaluateWithContext('@prev.value', { rootData: {}, arrayContext })
+// 20
+
+evaluateWithContext('@next.value', { rootData: {}, arrayContext })
+// 40
+
+// At first element, @prev is null
+evaluateWithContext('@prev', {
+  rootData: {},
+  arrayContext: { levels: [{ index: 0, length: 3, prev: null, next: {} }] }
+})
+// null`,
+    },
+    {
+      name: 'Array context tokens - nested arrays',
+      description:
+        'Access parent array context with #parent.*, #root.*, @parent.*, @root.*',
+      code: `// For nested arrays like orders[].items[]:
+// levels[0] = innermost (items), levels[1] = parent (orders)
+const arrayContext = {
+  levels: [
+    { index: 1, length: 3, prev: {}, next: {} },  // items[1]
+    { index: 2, length: 5, prev: {}, next: {} },  // orders[2]
+  ]
+};
+
+evaluateWithContext('#index', { rootData: {}, arrayContext })
+// 1 (current item index)
+
+evaluateWithContext('#parent.index', { rootData: {}, arrayContext })
+// 2 (parent order index)
+
+evaluateWithContext('#parent.length', { rootData: {}, arrayContext })
+// 5 (number of orders)
+
+// #root.* is shortcut for topmost array (same as #parent.* for 2 levels)
+evaluateWithContext('#root.index', { rootData: {}, arrayContext })
+// 2
+
+// For 3+ levels, #root always points to outermost array
+const threeLevel = {
+  levels: [
+    { index: 0, length: 2, prev: null, next: {} },  // innermost
+    { index: 1, length: 3, prev: {}, next: {} },    // middle
+    { index: 2, length: 4, prev: {}, next: null },  // outermost (root)
+  ]
+};
+
+evaluateWithContext('#parent.parent.index', { rootData: {}, arrayContext: threeLevel })
+// 2 (outermost)
+
+evaluateWithContext('#root.index', { rootData: {}, arrayContext: threeLevel })
+// 2 (same as #parent.parent.index)`,
+    },
+    {
+      name: 'Array context tokens - practical examples',
+      description:
+        'Common patterns: running total, numbering, delta calculation',
+      code: `// Running total pattern (like Excel)
+// rows[].runningTotal = if(#first, value, @prev.runningTotal + value)
+const rows = [
+  { value: 10 },
+  { value: 20 },
+  { value: 15 },
+];
+
+// For rows[2]:
+evaluateWithContext('if(#first, value, @prev.value + value)', {
+  rootData: {},
+  itemData: { value: 15 },
+  arrayContext: {
+    levels: [{
+      index: 2,
+      length: 3,
+      prev: { value: 20 },  // Note: use non-computed field from prev
+      next: null,
+    }]
+  }
+})
+// 35 (20 + 15)
+
+// Nested numbering like "1.1", "1.2", "2.1"
+// sections[].questions[].number
+evaluateWithContext('concat(#parent.index + 1, ".", #index + 1)', {
+  rootData: {},
+  arrayContext: {
+    levels: [
+      { index: 1, length: 3, prev: {}, next: {} },  // question index
+      { index: 0, length: 2, prev: null, next: {} }, // section index
+    ]
+  }
+})
+// "1.2"
+
+// Delta from previous
+// measurements[].delta = if(#first, 0, value - @prev.value)
+evaluateWithContext('if(#first, 0, value - @prev.value)', {
+  rootData: {},
+  itemData: { value: 105 },
+  arrayContext: {
+    levels: [{
+      index: 1,
+      length: 3,
+      prev: { value: 100 },
+      next: { value: 102 },
+    }]
+  }
+})
+// 5`,
     },
   ],
 

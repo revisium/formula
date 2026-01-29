@@ -114,8 +114,15 @@ const grammarText = String.raw`Formula {
   relativePath = relativePathPrefix+ identifierPart+
 
   contextToken
-    = "@" identifierPart+   -- at
-    | "#" identifierPart+   -- hash
+    = "@" contextPath       -- at
+    | "#" contextPath       -- hash
+
+  contextPath
+    = "parent" "." contextPath  -- parent
+    | "root" "." contextPathEnd -- root
+    | contextPathEnd            -- simple
+
+  contextPathEnd = identifierPart+
 
   // Reserved words (cannot be used as identifiers)
   reserved

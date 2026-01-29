@@ -21,36 +21,36 @@
     ".": {
       "import": {
         "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
+        "default": "./dist/index.mjs"
       },
       "require": {
-        "types": "./dist/index.d.cts",
+        "types": "./dist/index.d.ts",
         "default": "./dist/index.cjs"
       }
     },
     "./editor": {
       "import": {
         "types": "./dist/editor/index.d.ts",
-        "default": "./dist/editor/index.js"
+        "default": "./dist/editor/index.mjs"
       },
       "require": {
-        "types": "./dist/editor/index.d.cts",
+        "types": "./dist/editor/index.d.ts",
         "default": "./dist/editor/index.cjs"
       }
     },
     "./spec": {
       "import": {
         "types": "./dist/formula-spec.d.ts",
-        "default": "./dist/formula-spec.js"
+        "default": "./dist/formula-spec.mjs"
       },
       "require": {
-        "types": "./dist/formula-spec.d.cts",
+        "types": "./dist/formula-spec.d.ts",
         "default": "./dist/formula-spec.cjs"
       }
     }
   },
   "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
@@ -67,8 +67,9 @@
   ],
   "scripts": {
     "generate:spec": "tsx scripts/generate-spec-md.ts",
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "tsdown && npm run build:dts",
+    "build:dts": "tsc --emitDeclarationOnly --outDir dist --declaration --declarationMap",
+    "dev": "tsdown --watch",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage --silent",
@@ -92,7 +93,7 @@
     "jest": "^29.7.0",
     "prettier": "^3.4.2",
     "ts-jest": "^29.2.5",
-    "tsup": "^8.3.5",
+    "tsdown": "^0.20.1",
     "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.15.0"
