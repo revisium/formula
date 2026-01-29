@@ -1,7 +1,12 @@
 import { grammar } from '../grammar';
 import { semantics } from '../semantics';
 import type { ASTNode } from './types';
-import type { FormulaFeature, FormulaMinorVersion } from '../../types';
+import type {
+  ArrayContext,
+  ArrayLevelContext,
+  FormulaFeature,
+  FormulaMinorVersion,
+} from '../../types';
 
 function detectMinVersion(features: FormulaFeature[]): FormulaMinorVersion {
   if (features.includes('context_token')) {
@@ -85,8 +90,6 @@ export function evaluate(
 
   return semantics(matchResult).eval(safeContext);
 }
-
-import type { ArrayContext, ArrayLevelContext } from '../../types';
 
 export interface EvaluateContextOptions {
   rootData: Record<string, unknown>;
@@ -260,7 +263,7 @@ function buildArrayContextTokens(
     atParentPrefix = '@parent.' + atParentPrefix.slice(1);
   }
 
-  const rootLevel = levels[levels.length - 1];
+  const rootLevel = levels.at(-1);
   if (rootLevel) {
     tokens['#root.index'] = rootLevel.index;
     tokens['#root.length'] = rootLevel.length;
