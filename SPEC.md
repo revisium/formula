@@ -317,6 +317,7 @@ The parser automatically detects the minimum required version:
 | Function-named fields (max(max, 0)) | 1.0 |
 | Nested paths (a.b) | 1.1 |
 | Array index ([0], [-1]) | 1.1 |
+| Array wildcard property (items[*].price) | 1.1 |
 | Absolute paths (/field) | 1.1 |
 | Relative paths (../field) | 1.1 |
 | Bracket notation (["field-name"]) | 1.1 |
