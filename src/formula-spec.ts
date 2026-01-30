@@ -548,6 +548,7 @@ export const formulaSpec: FormulaSpec = {
     { feature: 'Function-named fields (max(max, 0))', minVersion: '1.0' },
     { feature: 'Nested paths (a.b)', minVersion: '1.1' },
     { feature: 'Array index ([0], [-1])', minVersion: '1.1' },
+    { feature: 'Array wildcard property (items[*].price)', minVersion: '1.1' },
     { feature: 'Absolute paths (/field)', minVersion: '1.1' },
     { feature: 'Relative paths (../field)', minVersion: '1.1' },
     { feature: 'Bracket notation (["field-name"])', minVersion: '1.1' },
