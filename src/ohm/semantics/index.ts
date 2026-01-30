@@ -746,7 +746,9 @@ semantics.addOperation<unknown>('eval(ctx)', {
     const objVal = obj.eval(this.args.ctx);
     const propName = prop.sourceString;
     if (Array.isArray(objVal)) {
-      return objVal.map((item) => (item as Record<string, unknown>)?.[propName]);
+      return objVal.map(
+        (item) => (item as Record<string, unknown>)?.[propName],
+      );
     }
     return (objVal as Record<string, unknown>)?.[propName];
   },
@@ -767,7 +769,11 @@ semantics.addOperation<unknown>('eval(ctx)', {
   },
   Postfix_wildcard(obj, _lb, _star, _rb) {
     const objVal = obj.eval(this.args.ctx);
-    if (Array.isArray(objVal) && objVal.length > 0 && Array.isArray(objVal[0])) {
+    if (
+      Array.isArray(objVal) &&
+      objVal.length > 0 &&
+      Array.isArray(objVal[0])
+    ) {
       return objVal.flat();
     }
     return objVal;

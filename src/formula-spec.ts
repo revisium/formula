@@ -457,7 +457,10 @@ export const formulaSpec: FormulaSpec = {
         'orders[*].items[*]                // [1,2,3,4] - flattened',
         'sum(orders[*].items[*].amount)    // sum all nested amounts',
       ],
-      dependenciesExtracted: ['["items[*].price"]', '["orders[*].items[*].amount"]'],
+      dependenciesExtracted: [
+        '["items[*].price"]',
+        '["orders[*].items[*].amount"]',
+      ],
     },
     {
       name: 'root_path',

@@ -647,10 +647,7 @@ describe('evaluate', () => {
 
     it('should flatten nested arrays with wildcard', () => {
       const context = {
-        values: [
-          { nested: { items: [1, 2] } },
-          { nested: { items: [3, 4] } },
-        ],
+        values: [{ nested: { items: [1, 2] } }, { nested: { items: [3, 4] } }],
       };
       expect(evaluate('values[*].nested.items', context)).toEqual([
         [1, 2],
