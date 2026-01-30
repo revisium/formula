@@ -617,6 +617,62 @@ describe('evaluate', () => {
       const context = { items: [1, 2, 3] };
       expect(evaluate('items[*]', context)).toEqual([1, 2, 3]);
     });
+
+    it('should evaluate wildcard with property access', () => {
+      const context = { items: [{ price: 10 }, { price: 20 }, { price: 30 }] };
+      expect(evaluate('items[*].price', context)).toEqual([10, 20, 30]);
+    });
+
+    it('should evaluate sum with wildcard property', () => {
+      const context = { items: [{ price: 10 }, { price: 20 }, { price: 30 }] };
+      expect(evaluate('sum(items[*].price)', context)).toBe(60);
+    });
+
+    it('should evaluate avg with wildcard property', () => {
+      const context = { items: [{ price: 10 }, { price: 20 }, { price: 30 }] };
+      expect(evaluate('avg(items[*].price)', context)).toBe(20);
+    });
+
+    it('should evaluate nested wildcard property access', () => {
+      const context = {
+        values: [
+          { nested: { value: 1 } },
+          { nested: { value: 2 } },
+          { nested: { value: 3 } },
+        ],
+      };
+      expect(evaluate('values[*].nested.value', context)).toEqual([1, 2, 3]);
+      expect(evaluate('sum(values[*].nested.value)', context)).toBe(6);
+    });
+
+    it('should flatten nested arrays with wildcard', () => {
+      const context = {
+        values: [{ nested: { items: [1, 2] } }, { nested: { items: [3, 4] } }],
+      };
+      expect(evaluate('values[*].nested.items', context)).toEqual([
+        [1, 2],
+        [3, 4],
+      ]);
+      expect(evaluate('values[*].nested.items[*]', context)).toEqual([
+        1, 2, 3, 4,
+      ]);
+      expect(evaluate('sum(values[*].nested.items[*])', context)).toBe(10);
+    });
+
+    it('should handle complex nested wildcard with objects', () => {
+      const context = {
+        values: [
+          { nested: { items: [{ value: 10 }, { value: 20 }] } },
+          { nested: { items: [{ value: 30 }] } },
+        ],
+      };
+      expect(evaluate('values[*].nested.items[*].value', context)).toEqual([
+        10, 20, 30,
+      ]);
+      expect(evaluate('sum(values[*].nested.items[*].value)', context)).toBe(
+        60,
+      );
+    });
   });
 
   describe('boolean and null literals', () => {
