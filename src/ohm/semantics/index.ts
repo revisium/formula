@@ -743,8 +743,12 @@ semantics.addOperation<unknown>('eval(ctx)', {
     throw new Error(`'${calleeName}' is not a function`);
   },
   Postfix_property(obj, _dot, prop) {
-    const objVal = obj.eval(this.args.ctx) as Record<string, unknown>;
-    return objVal?.[prop.sourceString];
+    const objVal = obj.eval(this.args.ctx);
+    const propName = prop.sourceString;
+    if (Array.isArray(objVal)) {
+      return objVal.map((item) => (item as Record<string, unknown>)?.[propName]);
+    }
+    return (objVal as Record<string, unknown>)?.[propName];
   },
   Postfix_index(obj, _lb, index, _rb) {
     const objVal = obj.eval(this.args.ctx);
@@ -762,7 +766,11 @@ semantics.addOperation<unknown>('eval(ctx)', {
     return (objVal as unknown[])?.[numIdx];
   },
   Postfix_wildcard(obj, _lb, _star, _rb) {
-    return obj.eval(this.args.ctx);
+    const objVal = obj.eval(this.args.ctx);
+    if (Array.isArray(objVal) && objVal.length > 0 && Array.isArray(objVal[0])) {
+      return objVal.flat();
+    }
+    return objVal;
   },
   Postfix(e) {
     return e.eval(this.args.ctx);

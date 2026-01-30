@@ -316,17 +316,26 @@ export const formulaSpec: FormulaSpec = {
     array: [
       {
         name: 'sum',
-        description: 'Calculate the sum of array elements',
+        description:
+          'Calculate the sum of array elements. Supports wildcard property access to sum nested values.',
         signature: 'sum(array)',
         returnType: 'number',
-        examples: ['sum(prices) // total of all prices'],
+        examples: [
+          'sum(prices) // total of all prices',
+          'sum(items[*].price) // sum prices from array of objects',
+          'sum(orders[*].items[*].amount) // sum nested arrays',
+        ],
       },
       {
         name: 'avg',
-        description: 'Calculate the average of array elements',
+        description:
+          'Calculate the average of array elements. Supports wildcard property access.',
         signature: 'avg(array)',
         returnType: 'number',
-        examples: ['avg(scores) // average score'],
+        examples: [
+          'avg(scores) // average score',
+          'avg(items[*].rating) // average rating from array of objects',
+        ],
       },
       {
         name: 'count',
@@ -433,6 +442,22 @@ export const formulaSpec: FormulaSpec = {
         'items[-2].price // second to last',
       ],
       dependenciesExtracted: ['["items[0].price"]', '["items[-1].name"]'],
+    },
+    {
+      name: 'array_wildcard_property',
+      description:
+        'Access properties across all array elements using [*] wildcard. Property access after wildcard maps over all elements. Multiple wildcards flatten nested arrays.',
+      minVersion: '1.1',
+      examples: [
+        'items[*].price                    // [10, 20, 30] - map property',
+        'sum(items[*].price)               // 60 - sum mapped values',
+        'avg(items[*].rating)              // average of all ratings',
+        'values[*].nested.value            // deeply nested property access',
+        'orders[*].items                   // [[1,2], [3,4]] - array of arrays',
+        'orders[*].items[*]                // [1,2,3,4] - flattened',
+        'sum(orders[*].items[*].amount)    // sum all nested amounts',
+      ],
+      dependenciesExtracted: ['["items[*].price"]', '["orders[*].items[*].amount"]'],
     },
     {
       name: 'root_path',
