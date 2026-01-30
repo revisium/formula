@@ -8,11 +8,14 @@ ${functions.map((f) => `| \`${f.name}\` | ${f.description.replace(/\n/g, ' ')} |
 }
 
 function getFeature(name: string) {
-  return formulaSpec.features.find((f) => f.name === name);
+  const feature = formulaSpec.features.find((f) => f.name === name);
+  if (!feature) {
+    throw new Error(`Feature "${name}" not found in formulaSpec.features`);
+  }
+  return feature;
 }
 
 function formatFeature(feature: ReturnType<typeof getFeature>) {
-  if (!feature) return '';
   const deps = feature.dependenciesExtracted
     ? `\n\n**Dependencies extracted:** ${feature.dependenciesExtracted.join(', ')}`
     : '';
