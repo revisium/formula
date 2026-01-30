@@ -131,7 +131,7 @@ Formulas are expressions that reference data fields and perform calculations. Th
 
 ### v1.0 Features
 
-#### Simple Field References
+#### Simple Refs
 
 Reference top-level fields by name.
 
@@ -141,9 +141,13 @@ quantity
 baseDamage
 ```
 
+**Feature:** `simple_refs`
+
 **Dependencies extracted:** ["price"], ["quantity"], ["baseDamage"]
 
-#### Arithmetic Operations
+#### Arithmetic
+
+Basic math operations (+, -, *, /).
 
 ```
 price * 1.1
@@ -151,7 +155,11 @@ a + b - c
 quantity * price
 ```
 
-#### Comparisons
+**Feature:** `arithmetic`
+
+#### Comparison
+
+Compare values (>, <, >=, <=, ==, !=).
 
 ```
 price > 100
@@ -159,11 +167,26 @@ x == 10
 quantity >= 5
 ```
 
+**Feature:** `comparison`
+
+#### Function Named Fields
+
+Fields can have the same name as built-in functions (max, min, sum, etc.). Built-in functions are always checked first when a function call is made.
+
+```
+max(max, 0)
+min(min, 100)
+max(max - field.min, 0)
+round(round * 2)
+```
+
+**Feature:** `function_named_fields`
+
 ### v1.1 Features
 
 Features below require formula version 1.1 and set `minVersion: "1.1"`.
 
-#### Nested Paths
+#### Nested Path
 
 Access nested object properties using dot notation.
 
@@ -174,25 +197,115 @@ item.metadata.category
 ```
 
 **Feature:** `nested_path`
-**Dependencies:** Full path is extracted (e.g., ["stats.damage"])
 
-#### Array Index Access
+**Dependencies extracted:** ["stats.damage"]
+
+#### Array Index
 
 Access array elements by numeric index. Negative indices access from the end.
 
 ```
 items[0].price
 inventory[1].quantity
-```
-
-Negative indices access from the end:
-```
 items[-1].name  // last element
 items[-2].price // second to last
 ```
 
 **Feature:** `array_index`
-**Dependencies:** ["items[0].price"], ["items[-1].name"]
+
+**Dependencies extracted:** ["items[0].price"], ["items[-1].name"]
+
+#### Array Wildcard Property
+
+Access properties across all array elements using [*] wildcard. Property access after wildcard maps over all elements. Multiple wildcards flatten nested arrays..
+
+```
+items[*].price                    // [10, 20, 30] - map property
+sum(items[*].price)               // 60 - sum mapped values
+avg(items[*].rating)              // average of all ratings
+values[*].nested.value            // deeply nested property access
+orders[*].items                   // [[1,2], [3,4]] - array of arrays
+orders[*].items[*]                // [1,2,3,4] - flattened
+sum(orders[*].items[*].amount)    // sum all nested amounts
+```
+
+**Feature:** `array_wildcard_property`
+
+**Dependencies extracted:** ["items[*].price"], ["orders[*].items[*].amount"]
+
+#### Root Path
+
+Absolute path reference starting with /. Always resolves from root data, even inside array item formulas.
+
+```
+/taxRate
+/config.tax
+price * (1 + /taxRate)
+price * /config.multiplier
+```
+
+**Feature:** `root_path`
+
+**Dependencies extracted:** ["/taxRate"], ["/config.tax"]
+
+#### Relative Path
+
+Relative path reference starting with ../. Each ../ goes up one level in the path hierarchy. Works with nested objects, arrays, and combinations. Supports accessing nested properties after the relative prefix (e.g., ../config.value).
+
+```
+../discount
+../../rootRate
+../config.multiplier
+price * (1 - ../discount)
+price * ../../globalRate
+price * ../settings.tax.rate
+```
+
+**Feature:** `relative_path`
+
+**Dependencies extracted:** ["../discount"], ["../../rootRate"], ["../config.multiplier"]
+
+#### Bracket Notation
+
+Access fields containing hyphens using bracket notation with quotes. Required because "field-name" would be parsed as "field minus name" (subtraction). Works like JavaScript object["key"] syntax..
+
+```
+["field-name"]          // Without brackets: field - name (subtraction!)
+['field-name']          // Single quotes also work
+["field-one"]["field-two"]
+obj["field-name"].value
+["items-list"][0]["val"]
+["price-new"] * 2
+```
+
+**Feature:** `bracket_notation`
+
+**Dependencies extracted:** ["field-name"], ['field-name']
+
+### v1.2 Features
+
+Features below require formula version 1.2 and set `minVersion: "1.2"`.
+
+#### Context Token
+
+Array context tokens provide information about current position and neighboring elements when evaluating formulas inside arrays. # prefix for scalar metadata (number/boolean), @ prefix for object references..
+
+```
+#index                  // Current array index (0-based)
+#length                 // Array length
+#first                  // true if first element
+#last                   // true if last element
+@prev                   // Previous element (null if first)
+@next                   // Next element (null if last)
+#parent.index           // Index in parent array (nested arrays)
+#parent.length          // Length of parent array
+#root.index             // Index in topmost array
+@root.prev              // Previous element in topmost array
+if(#first, value, @prev.total + value)  // Running total
+concat(#parent.index + 1, ".", #index + 1)  // "1.1", "1.2" numbering
+```
+
+**Feature:** `context_token`
 
 ## Version Detection
 

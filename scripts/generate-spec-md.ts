@@ -4,7 +4,27 @@ import { formulaSpec, FunctionSpec } from '../src/formula-spec';
 function formatFunctionTable(functions: FunctionSpec[]): string {
   return `| Function | Description | Signature | Returns |
 |----------|-------------|-----------|---------|
-${functions.map((f) => `| \`${f.name}\` | ${f.description} | \`${f.signature}\` | ${f.returnType} |`).join('\n')}`;
+${functions.map((f) => `| \`${f.name}\` | ${f.description.replace(/\n/g, ' ')} | \`${f.signature}\` | ${f.returnType} |`).join('\n')}`;
+}
+
+function getFeature(name: string) {
+  return formulaSpec.features.find((f) => f.name === name);
+}
+
+function formatFeature(feature: ReturnType<typeof getFeature>) {
+  if (!feature) return '';
+  const deps = feature.dependenciesExtracted
+    ? `\n\n**Dependencies extracted:** ${feature.dependenciesExtracted.join(', ')}`
+    : '';
+  return `#### ${feature.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+
+${feature.description}.
+
+\`\`\`
+${feature.examples.join('\n')}
+\`\`\`
+
+**Feature:** \`${feature.name}\`${deps}`;
 }
 
 const md = `<!-- AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY -->
@@ -76,58 +96,35 @@ ${formulaSpec.syntax.fieldReferences.map((r) => `- ${r}`).join('\n')}
 
 ### v1.0 Features
 
-#### Simple Field References
+${formatFeature(getFeature('simple_refs'))}
 
-${formulaSpec.features[0].description}.
+${formatFeature(getFeature('arithmetic'))}
 
-\`\`\`
-${formulaSpec.features[0].examples.join('\n')}
-\`\`\`
+${formatFeature(getFeature('comparison'))}
 
-**Dependencies extracted:** ${formulaSpec.features[0].dependenciesExtracted?.join(', ')}
-
-#### Arithmetic Operations
-
-\`\`\`
-${formulaSpec.features[1].examples.join('\n')}
-\`\`\`
-
-#### Comparisons
-
-\`\`\`
-${formulaSpec.features[2].examples.join('\n')}
-\`\`\`
+${formatFeature(getFeature('function_named_fields'))}
 
 ### v1.1 Features
 
 Features below require formula version 1.1 and set \`minVersion: "1.1"\`.
 
-#### Nested Paths
+${formatFeature(getFeature('nested_path'))}
 
-${formulaSpec.features[3].description}.
+${formatFeature(getFeature('array_index'))}
 
-\`\`\`
-${formulaSpec.features[3].examples.join('\n')}
-\`\`\`
+${formatFeature(getFeature('array_wildcard_property'))}
 
-**Feature:** \`nested_path\`
-**Dependencies:** Full path is extracted (e.g., ${formulaSpec.features[3].dependenciesExtracted?.join(', ')})
+${formatFeature(getFeature('root_path'))}
 
-#### Array Index Access
+${formatFeature(getFeature('relative_path'))}
 
-${formulaSpec.features[4].description}.
+${formatFeature(getFeature('bracket_notation'))}
 
-\`\`\`
-${formulaSpec.features[4].examples.slice(0, 2).join('\n')}
-\`\`\`
+### v1.2 Features
 
-Negative indices access from the end:
-\`\`\`
-${formulaSpec.features[4].examples.slice(2).join('\n')}
-\`\`\`
+Features below require formula version 1.2 and set \`minVersion: "1.2"\`.
 
-**Feature:** \`array_index\`
-**Dependencies:** ${formulaSpec.features[4].dependenciesExtracted?.join(', ')}
+${formatFeature(getFeature('context_token'))}
 
 ## Version Detection
 
