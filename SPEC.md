@@ -95,8 +95,8 @@ Formulas are expressions that reference data fields and perform calculations. Th
 
 | Function | Description | Signature | Returns |
 |----------|-------------|-----------|---------|
-| `sum` | Calculate the sum of array elements | `sum(array)` | number |
-| `avg` | Calculate the average of array elements | `avg(array)` | number |
+| `sum` | Calculate the sum of array elements. Supports wildcard property access to sum nested values. | `sum(array)` | number |
+| `avg` | Calculate the average of array elements. Supports wildcard property access. | `avg(array)` | number |
 | `count` | Get the number of elements in an array | `count(array)` | number |
 | `first` | Get the first element of an array | `first(array)` | any |
 | `last` | Get the last element of an array | `last(array)` | any |
