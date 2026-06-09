@@ -158,6 +158,26 @@ evaluateWithContext('price * (1 - ../discount)', {
 | Absolute paths (`/field`) | 1.1 |
 | Relative paths (`../field`) | 1.1 |
 
+## Development
+
+This project uses [pnpm](https://pnpm.io) (pinned via the `packageManager` field in `package.json`). With [Corepack](https://nodejs.org/api/corepack.html) enabled, the correct pnpm version is selected automatically.
+
+```bash
+corepack enable        # once per machine
+pnpm install           # install dependencies
+```
+
+| Command | Description |
+|---------|-------------|
+| `pnpm build` | Build the library (ESM + CJS + type declarations) |
+| `pnpm test` | Run the test suite |
+| `pnpm tsc` | Type-check (no emit) |
+| `pnpm lint:ci` | Lint |
+| `pnpm format:check` | Check formatting |
+| `pnpm generate:spec` | Regenerate `SPEC.md` |
+
+The Node version is pinned in `.nvmrc`. When adding a dependency that runs install scripts (e.g. native builds), approve it with `pnpm approve-builds` and commit the updated `pnpm-workspace.yaml`.
+
 ## License
 
 MIT

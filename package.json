@@ -67,7 +67,7 @@
   ],
   "scripts": {
     "generate:spec": "tsx scripts/generate-spec-md.ts",
-    "build": "tsdown && npm run build:dts",
+    "build": "tsdown && pnpm run build:dts",
     "build:dts": "tsc --emitDeclarationOnly --outDir dist --declaration --declarationMap",
     "dev": "tsdown --watch",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
@@ -78,7 +78,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "tsc": "tsc --noEmit",
-    "prepublishOnly": "npm run generate:spec && npm run build && npm run tsc"
+    "prepublishOnly": "pnpm run generate:spec && pnpm run build && pnpm run tsc"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
@@ -98,6 +98,7 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.15.0"
   },
+  "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=18.0.0"
   },

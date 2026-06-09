@@ -31,7 +31,7 @@ ${feature.examples.join('\n')}
 }
 
 const md = `<!-- AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY -->
-<!-- Edit src/formula-spec.ts and run: npm run generate:spec -->
+<!-- Edit src/formula-spec.ts and run: pnpm run generate:spec -->
 
 # Formula Specification v${formulaSpec.version}
 
