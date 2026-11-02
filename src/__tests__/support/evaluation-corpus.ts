@@ -1,33 +1,17 @@
-import { isDeepStrictEqual } from 'node:util';
 import { formulaSpec } from '../../formula-spec';
-import { BUILTIN_FUNCTIONS } from '../../ohm/core/builtin-functions';
 import type { EvaluateContextOptions } from '../../ohm/core/parser';
 import type { ArrayLevelContext } from '../../types';
+import type { EvaluationCase } from './differential-comparison';
+import { REFERENCE_BUILTIN_NAMES } from './reference-evaluation';
 
-export interface EvaluateCase {
-  readonly expression: string;
-  readonly context: Record<string, unknown>;
-}
+export type EvaluateCase = EvaluationCase<Record<string, unknown>>;
 
-export interface EvaluateWithContextCase {
-  readonly expression: string;
-  readonly options: EvaluateContextOptions;
-}
-
-export type EvaluationOutcome =
-  | { readonly value: unknown }
-  | { readonly thrown: { readonly type: string; readonly message: string } };
-
-export interface Mismatch {
-  readonly expression: string;
-  readonly actual: EvaluationOutcome;
-  readonly expected: EvaluationOutcome;
-}
+export type EvaluateWithContextCase = EvaluationCase<EvaluateContextOptions>;
 
 type Random = () => number;
 
 function createRandom(seed: number): Random {
-  let state = seed >>> 0 || 1;
+  let state = Math.imul(seed ^ 0x9e3779b9, 0x85ebca6b) >>> 0 || 1;
   return () => {
     state ^= state << 13;
     state >>>= 0;
@@ -42,47 +26,11 @@ function pickFrom<T>(random: Random, items: readonly T[]): T {
   return items[Math.floor(random() * items.length)] as T;
 }
 
-function describeThrown(error: unknown): {
-  type: string;
-  message: string;
-} {
-  if (error instanceof Error) {
-    return { type: error.constructor.name, message: error.message };
-  }
-  return { type: typeof error, message: String(error) };
-}
-
-function outcomeOf(run: () => unknown): EvaluationOutcome {
-  try {
-    return { value: run() };
-  } catch (error) {
-    return { thrown: describeThrown(error) };
-  }
-}
-
-export interface ReferenceComparison {
-  readonly mismatches: Mismatch[];
-  readonly referenceThrows: number;
-}
-
-export function compareWithReference<C extends { readonly expression: string }>(
-  cases: readonly C[],
-  evaluateActual: (testCase: C) => unknown,
-  evaluateReference: (testCase: C) => unknown,
-): ReferenceComparison {
-  const mismatches: Mismatch[] = [];
-  let referenceThrows = 0;
-  for (const testCase of cases) {
-    const expected = outcomeOf(() => evaluateReference(testCase));
-    const actual = outcomeOf(() => evaluateActual(testCase));
-    if ('thrown' in expected) {
-      referenceThrows++;
-    }
-    if (!isDeepStrictEqual(actual, expected)) {
-      mismatches.push({ expression: testCase.expression, actual, expected });
-    }
-  }
-  return { mismatches, referenceThrows };
+function recorder(log: unknown[]): (value: unknown) => unknown {
+  return (value) => {
+    log.push(value);
+    return value;
+  };
 }
 
 // ---------------------------------------------------------------- specification examples
@@ -95,7 +43,7 @@ function withoutComment(example: string): string {
   return example.slice(0, commentStart).trim();
 }
 
-export function specificationExpressions(): string[] {
+function specificationExpressions(): string[] {
   const functionExamples = Object.values(formulaSpec.functions).flatMap(
     (group) => group.flatMap((fn) => fn.examples),
   );
@@ -106,13 +54,15 @@ export function specificationExpressions(): string[] {
   );
 }
 
-const specificationItems = [
-  { price: 10, name: 'a', rating: 4, quantity: 1, total: 10, value: 1 },
-  { price: 20, name: 'b', rating: 5, quantity: 2, total: 40, value: 2 },
-  { price: 30, name: 'c', rating: 3, quantity: 3, total: 90, value: 3 },
-];
+function specificationItems(): Record<string, unknown>[] {
+  return [
+    { price: 10, name: 'a', rating: 4, quantity: 1, total: 10, value: 1 },
+    { price: 20, name: 'b', rating: 5, quantity: 2, total: 40, value: 2 },
+    { price: 30, name: 'c', rating: 3, quantity: 3, total: 90, value: 3 },
+  ];
+}
 
-export function specificationData(): Record<string, unknown> {
+function specificationData(): Record<string, unknown> {
   return {
     price: 100,
     quantity: 3,
@@ -147,7 +97,7 @@ export function specificationData(): Record<string, unknown> {
       addresses: [{ city: 'Oslo' }, { city: 'Rome' }],
     },
     item: { metadata: { category: 'tools' } },
-    items: specificationItems,
+    items: specificationItems(),
     inventory: [{ quantity: 4 }, { quantity: 6 }],
     values: [{ nested: { value: 1 } }, { nested: { value: 2 } }],
     orders: [
@@ -167,6 +117,21 @@ export function specificationData(): Record<string, unknown> {
   };
 }
 
+function specificationTokens(): Record<string, unknown> {
+  return {
+    '#index': 1,
+    '#length': 3,
+    '#first': false,
+    '#last': false,
+    '@prev': { total: 10 },
+    '@next': { total: 90 },
+    '#parent.index': 0,
+    '#parent.length': 2,
+    '#root.index': 0,
+    '@root.prev': null,
+  };
+}
+
 function levelOf(items: readonly unknown[], index: number): ArrayLevelContext {
   return {
     index,
@@ -176,16 +141,31 @@ function levelOf(items: readonly unknown[], index: number): ArrayLevelContext {
   };
 }
 
-export function specificationItemOptions(): EvaluateContextOptions {
+function specificationItemOptions(): EvaluateContextOptions {
   const rootData = specificationData();
+  const items = rootData.items as Record<string, unknown>[];
   return {
     rootData,
-    itemData: specificationItems[1],
+    itemData: items[1],
     currentPath: 'items[1]',
     arrayContext: {
-      levels: [levelOf(specificationItems, 1), levelOf(['x', 'y'], 0)],
+      levels: [levelOf(items, 1), levelOf(['x', 'y'], 0)],
     },
   };
+}
+
+export function specificationEvaluateCases(): EvaluateCase[] {
+  return specificationExpressions().map((expression) => ({
+    expression,
+    createInput: () => ({ ...specificationData(), ...specificationTokens() }),
+  }));
+}
+
+export function specificationItemCases(): EvaluateWithContextCase[] {
+  return specificationExpressions().map((expression) => ({
+    expression,
+    createInput: specificationItemOptions,
+  }));
 }
 
 // ---------------------------------------------------------------- generated expressions
@@ -242,6 +222,8 @@ const SPECIAL_PATHS = [
   '["w-x"]',
   '["__proto__"]',
   "['p']",
+  'nested.bump()',
+  'nested.record(p)',
 ];
 
 const BINARY_OPERATORS = [
@@ -261,7 +243,7 @@ const BINARY_OPERATORS = [
 ];
 
 const CALLEES = [
-  ...Object.keys(BUILTIN_FUNCTIONS),
+  ...REFERENCE_BUILTIN_NAMES,
   'MAX',
   'Round',
   'foo',
@@ -272,6 +254,8 @@ const CALLEES = [
   'valueOf',
   'nested.fn',
   'nested.boom',
+  'nested.record',
+  'nested.bump',
   'missing.fn',
 ];
 
@@ -415,15 +399,21 @@ function anyValue(random: Random): unknown {
   return ['__proto__'];
 }
 
-function nestedObject(random: Random): Record<string, unknown> {
-  return {
+function nestedObject(random: Random, log: unknown[]): Record<string, unknown> {
+  const nested: Record<string, unknown> = {
     v: scalarValue(random),
     fn: (x: unknown) => [x, 'called'],
     boom: () => {
       throw new TypeError('boom');
     },
-    __proto__: { inherited: true },
+    record: recorder(log),
+    bump: () => {
+      nested.v = typeof nested.v === 'number' ? nested.v + 1 : 1;
+      return nested.v;
+    },
   };
+  Object.setPrototypeOf(nested, { inherited: true });
+  return nested;
 }
 
 function contextWithOwnProtoKey(): Record<string, unknown> {
@@ -437,6 +427,7 @@ function generateContext(random: Random): Record<string, unknown> {
     return contextWithOwnProtoKey();
   }
 
+  const log: unknown[] = [];
   const context: Record<string, unknown> = {
     p: scalarValue(random),
     q: scalarValue(random),
@@ -448,7 +439,7 @@ function generateContext(random: Random): Record<string, unknown> {
       { v: scalarValue(random), name: 'b' },
       { v: scalarValue(random) },
     ],
-    nested: nestedObject(random),
+    nested: nestedObject(random, log),
     tags: ['x', 'y', scalarValue(random)],
     matrix: [
       [1, 2],
@@ -478,6 +469,7 @@ function generateContext(random: Random): Record<string, unknown> {
       delete context[key];
     }
   }
+  context.log = log;
 
   return context;
 }
@@ -487,12 +479,16 @@ export function generateEvaluateCases(
   expressionCount: number,
   contextsPerExpression: number,
 ): EvaluateCase[] {
-  const random = createRandom(seed + 1);
-  return generateExpressions(seed, expressionCount).flatMap((expression) =>
-    Array.from({ length: contextsPerExpression }, () => ({
-      expression,
-      context: generateContext(random),
-    })),
+  return generateExpressions(seed, expressionCount).flatMap(
+    (expression, expressionIndex) =>
+      Array.from({ length: contextsPerExpression }, (_, contextIndex) => {
+        const contextSeed =
+          seed + 1 + expressionIndex * contextsPerExpression + contextIndex;
+        return {
+          expression,
+          createInput: () => generateContext(createRandom(contextSeed)),
+        };
+      }),
   );
 }
 
@@ -531,6 +527,9 @@ const ITEM_ATOMS = [
   'sum(items[*].v)',
   'sum(groups[*].items[*].v)',
   'count(items)',
+  'tools.record(v)',
+  'tools.record(#index)',
+  'tools.bump()',
   '1',
   '"s"',
   'null',
@@ -548,6 +547,11 @@ function generateRootData(random: Random): Record<string, unknown> {
     name,
     lineTotal: random() < 0.5 ? scalarValue(random) : undefined,
   });
+  const log: unknown[] = [];
+  const tools = {
+    record: recorder(log),
+    bump: () => log.push('bump'),
+  };
   return {
     p: scalarValue(random),
     discount: pickFrom(random, [0, 10, '5', null]),
@@ -558,6 +562,8 @@ function generateRootData(random: Random): Record<string, unknown> {
       { title: 'g0', items: [item('g0a'), item('g0b')] },
       { title: 'g1', items: [item('g1a')] },
     ],
+    tools,
+    log,
   };
 }
 
@@ -612,20 +618,38 @@ function generateOptions(random: Random): EvaluateContextOptions {
   return nestedItemOptions(random, rootData);
 }
 
+function generateItemExpressions(seed: number, count: number): string[] {
+  const generator = new ExpressionGenerator(createRandom(seed), ITEM_ATOMS);
+  return Array.from({ length: count }, () => generator.expression());
+}
+
 export function generateEvaluateWithContextCases(
   seed: number,
   expressionCount: number,
   optionsPerExpression: number,
 ): EvaluateWithContextCase[] {
-  const random = createRandom(seed);
-  const generator = new ExpressionGenerator(random, ITEM_ATOMS);
-  const expressions = Array.from({ length: expressionCount }, () =>
-    generator.expression(),
+  return generateItemExpressions(seed, expressionCount).flatMap(
+    (expression, expressionIndex) =>
+      Array.from({ length: optionsPerExpression }, (_, optionsIndex) => {
+        const optionsSeed =
+          seed + 1 + expressionIndex * optionsPerExpression + optionsIndex;
+        return {
+          expression,
+          createInput: () => generateOptions(createRandom(optionsSeed)),
+        };
+      }),
   );
-  return expressions.flatMap((expression) =>
-    Array.from({ length: optionsPerExpression }, () => ({
-      expression,
-      options: generateOptions(random),
-    })),
-  );
+}
+
+export function parseCases(): EvaluationCase<undefined>[] {
+  const expressions = [
+    ...specificationExpressions(),
+    ...generateExpressions(20261102, 600),
+    ...generateItemExpressions(7, 300),
+  ];
+  const coldAndWarm = [...expressions, ...expressions];
+  return coldAndWarm.map((expression) => ({
+    expression,
+    createInput: () => undefined,
+  }));
 }

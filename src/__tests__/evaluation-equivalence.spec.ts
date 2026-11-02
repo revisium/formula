@@ -1,82 +1,77 @@
 import { describe, it, expect } from '@jest/globals';
-import { evaluate, evaluateWithContext } from '../ohm';
+import { evaluate, evaluateWithContext, parseFormula } from '../ohm';
+import type { EvaluateContextOptions } from '../ohm';
 import {
   compareWithReference,
+  type EvaluationCase,
+} from './support/differential-comparison';
+import {
   generateEvaluateCases,
   generateEvaluateWithContextCases,
-  specificationData,
-  specificationExpressions,
-  specificationItemOptions,
+  parseCases,
+  specificationEvaluateCases,
+  specificationItemCases,
   type EvaluateCase,
   type EvaluateWithContextCase,
 } from './support/evaluation-corpus';
 import {
   referenceEvaluate,
   referenceEvaluateWithContext,
+  referenceParseFormula,
 } from './support/reference-evaluation';
 
-const evaluateCase = ({ expression, context }: EvaluateCase) =>
-  evaluate(expression, context);
-
-const referenceEvaluateCase = ({ expression, context }: EvaluateCase) =>
-  referenceEvaluate(expression, context);
-
-const evaluateWithContextCase = ({
-  expression,
-  options,
-}: EvaluateWithContextCase) => evaluateWithContext(expression, options);
-
-const referenceEvaluateWithContextCase = ({
-  expression,
-  options,
-}: EvaluateWithContextCase) =>
-  referenceEvaluateWithContext(expression, options);
-
 const compareEvaluate = (cases: readonly EvaluateCase[]) =>
-  compareWithReference(cases, evaluateCase, referenceEvaluateCase);
+  compareWithReference(cases, evaluate, referenceEvaluate);
 
 const compareEvaluateWithContext = (
   cases: readonly EvaluateWithContextCase[],
 ) =>
   compareWithReference(
     cases,
-    evaluateWithContextCase,
-    referenceEvaluateWithContextCase,
+    evaluateWithContext,
+    referenceEvaluateWithContext,
   );
 
-const tokenContext = {
-  '#index': 1,
-  '#length': 3,
-  '#first': false,
-  '#last': false,
-  '@prev': { total: 10 },
-  '@next': { total: 90 },
-  '#parent.index': 0,
-  '#parent.length': 2,
-  '#root.index': 0,
-  '@root.prev': null,
-};
+function casesOf<I>(
+  createInput: () => I,
+  expressions: readonly string[],
+): EvaluationCase<I>[] {
+  return expressions.map((expression) => ({ expression, createInput }));
+}
 
-const edgeContext = (): Record<string, unknown> => ({
-  p: 2,
-  w: '__proto__',
-  key: ['__proto__'],
-  items: [{ v: 1 }, { v: 2 }],
-  matrix: [[1, 2], [3]],
-  empty: [],
-  nested: {
+const edgeContext = (): Record<string, unknown> => {
+  const log: unknown[] = [];
+  const nested = {
     v: 3,
     fn: (x: unknown) => [x, 'called'],
     boom: () => {
       throw new TypeError('boom');
     },
-  },
-  obj: { v: 1, length: 4 },
-  text: 'Hello',
-  custom: { valueOf: () => 42, toString: () => 'custom' },
-  symbol: Symbol('s'),
-  topLevelFunction: () => 'filtered out',
-});
+    record: (x: unknown) => {
+      log.push(x);
+      return x;
+    },
+    bump: () => {
+      nested.v += 1;
+      return nested.v;
+    },
+  };
+  return {
+    p: 2,
+    w: '__proto__',
+    key: ['__proto__'],
+    items: [{ v: 1 }, { v: 2 }],
+    matrix: [[1, 2], [3]],
+    empty: [],
+    nested,
+    log,
+    obj: { v: 1, length: 4 },
+    text: 'Hello',
+    custom: { valueOf: () => 42, toString: () => 'custom' },
+    symbol: Symbol('s'),
+    topLevelFunction: () => 'filtered out',
+  };
+};
 
 const EDGE_EXPRESSIONS = [
   '',
@@ -126,6 +121,12 @@ const EDGE_EXPRESSIONS = [
   '"5" == 5',
   'null == missing',
   'p > "10"',
+  'p >= 2',
+  'p <= 2',
+  'p > 2',
+  'p < 2',
+  'null >= 0',
+  '"b" <= "a"',
   '"a" + 1 + 2',
   '1 + 2 + "a"',
   'true + 1',
@@ -142,46 +143,59 @@ const EDGE_EXPRESSIONS = [
   'sum(items[*].v) + count(items)',
   'join(matrix[*], "-")',
   'if(p, "yes", foo())',
+  'nested.record(1) + nested.record(2)',
+  'max(nested.record(3), nested.record(1))',
+  'nested.record(1) ? nested.record(2) : nested.record(3)',
+  'false && nested.record(1)',
+  'nested.bump() + nested.bump() * nested.v',
+  'nested.record(foo())',
+  'foo(nested.record(1))',
+  'nested.record(nested.boom())',
 ];
+
+describe('parsing equals the reference parser', () => {
+  it('on the specification examples and generated expressions, cold and cached', () => {
+    const comparison = compareWithReference(
+      parseCases(),
+      parseFormula,
+      referenceParseFormula,
+    );
+
+    expect(comparison.referenceThrows).toBeGreaterThan(100);
+    expect(comparison.mismatches).toEqual([]);
+  });
+});
 
 describe('evaluation equals the reference Ohm semantics', () => {
   it('on the specification examples, with plain and array item contexts', () => {
-    const expressions = specificationExpressions();
-    const plainCases = expressions.map((expression) => ({
-      expression,
-      context: { ...specificationData(), ...tokenContext },
-    }));
-    const itemCases = expressions.map((expression) => ({
-      expression,
-      options: specificationItemOptions(),
-    }));
-
-    expect(compareEvaluate(plainCases).mismatches).toEqual([]);
-    expect(compareEvaluateWithContext(itemCases).mismatches).toEqual([]);
+    expect(compareEvaluate(specificationEvaluateCases()).mismatches).toEqual(
+      [],
+    );
+    expect(
+      compareEvaluateWithContext(specificationItemCases()).mismatches,
+    ).toEqual([]);
   });
 
-  it('on edge cases: syntax errors, calls of non-functions, unsafe names, evaluation order', () => {
-    const cases = EDGE_EXPRESSIONS.map((expression) => ({
-      expression,
-      context: edgeContext(),
-    }));
+  it('on edge cases: syntax errors, calls, unsafe names, evaluation order, side effects', () => {
+    const cases = casesOf(edgeContext, EDGE_EXPRESSIONS);
     const coldAndWarm = [...cases, ...cases];
 
     expect(compareEvaluate(coldAndWarm).mismatches).toEqual([]);
   });
 
   it('on a context with an own "__proto__" key and on a missing context', () => {
-    const ownProtoKey = JSON.parse(
-      '{"__proto__": {"p": "from own __proto__ key"}, "q": 1}',
-    ) as Record<string, unknown>;
-    const missingContext = null as unknown as Record<string, unknown>;
-    const cases = [
-      { expression: 'p + q', context: ownProtoKey },
-      { expression: 'p + 1', context: missingContext },
-      { expression: 'p +', context: missingContext },
-    ];
+    const ownProtoKey = () =>
+      JSON.parse(
+        '{"__proto__": {"p": "from own __proto__ key"}, "q": 1}',
+      ) as Record<string, unknown>;
+    const missingContext = () => null as unknown as Record<string, unknown>;
 
-    expect(compareEvaluate(cases).mismatches).toEqual([]);
+    expect(
+      compareEvaluate([
+        ...casesOf(ownProtoKey, ['p + q']),
+        ...casesOf(missingContext, ['p + 1', 'p +']),
+      ]).mismatches,
+    ).toEqual([]);
   });
 
   it('on generated expressions, each evaluated with several contexts', () => {
@@ -201,16 +215,20 @@ describe('evaluation equals the reference Ohm semantics', () => {
   });
 
   it('on invalid options passed to evaluateWithContext', () => {
-    const cases = [
-      { expression: 'p +', options: undefined },
-      { expression: '', options: undefined },
-      { expression: '../p + 1', options: { rootData: null } },
-      {
-        expression: '#index',
-        options: { rootData: {}, arrayContext: { levels: [] } },
-      },
-    ] as unknown as EvaluateWithContextCase[];
+    const missingOptions = () => undefined as unknown as EvaluateContextOptions;
+    const missingRootData = () =>
+      ({ rootData: null }) as unknown as EvaluateContextOptions;
+    const emptyArrayContext = (): EvaluateContextOptions => ({
+      rootData: {},
+      arrayContext: { levels: [] },
+    });
 
-    expect(compareEvaluateWithContext(cases).mismatches).toEqual([]);
+    expect(
+      compareEvaluateWithContext([
+        ...casesOf(missingOptions, ['p +', '']),
+        ...casesOf(missingRootData, ['../p + 1']),
+        ...casesOf(emptyArrayContext, ['#index']),
+      ]).mismatches,
+    ).toEqual([]);
   });
 });

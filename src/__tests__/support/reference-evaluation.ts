@@ -1,17 +1,100 @@
-// Reference meaning of evaluation: the Ohm `eval(ctx)` operation and the
-// evaluate/evaluateWithContext composition of @revisium/formula 0.10.0, kept
-// verbatim so differential tests can compare the AST evaluator against it.
+// Reference meaning of evaluation: the Ohm `eval(ctx)` operation (renamed
+// `referenceEval`), its built-in functions and the evaluate/evaluateWithContext
+// composition of @revisium/formula 0.10.0, copied verbatim so differential tests
+// compare the AST evaluator against code that production changes cannot reach.
 import { grammar } from '../../ohm/grammar';
 import { semantics } from '../../ohm/semantics';
-import { BUILTIN_FUNCTIONS } from '../../ohm/core/builtin-functions';
 import {
   buildArrayContextTokens,
   buildPathReferences,
-} from '../../ohm/core/evaluation-context';
-import type { EvaluateContextOptions } from '../../ohm/core/parser';
+} from './reference-evaluation-context';
+import type {
+  EvaluateContextOptions,
+  ParseResult,
+} from '../../ohm/core/parser';
 import type { ASTNode } from '../../ohm/core/types';
+import type { FormulaFeature, FormulaMinorVersion } from '../../types';
 
 const referenceSemantics = grammar.extendSemantics(semantics);
+
+const BUILTINS: Record<string, (...args: unknown[]) => unknown> = {
+  // Logical
+  and: (a, b) => Boolean(a) && Boolean(b),
+  or: (a, b) => Boolean(a) || Boolean(b),
+  not: (a) => !a,
+
+  // String
+  concat: (...args) => args.map(String).join(''),
+  upper: (s) => String(s).toUpperCase(),
+  lower: (s) => String(s).toLowerCase(),
+  trim: (s) => String(s).trim(),
+  left: (s, n) => String(s).slice(0, Math.max(0, Math.floor(Number(n)))),
+  right: (s, n) => {
+    const str = String(s);
+    const count = Math.max(0, Math.floor(Number(n)));
+    return count === 0 ? '' : str.slice(-count);
+  },
+  replace: (s, search, repl) => String(s).replace(String(search), String(repl)),
+  tostring: String,
+  length: (s) => {
+    if (Array.isArray(s)) return s.length;
+    if (typeof s === 'string') return s.length;
+    if (s !== null && typeof s === 'object') return Object.keys(s).length;
+    return String(s).length;
+  },
+  contains: (s, search) => String(s).includes(String(search)),
+  startswith: (s, search) => String(s).startsWith(String(search)),
+  endswith: (s, search) => String(s).endsWith(String(search)),
+  join: (arr: unknown, sep: unknown) => {
+    if (!Array.isArray(arr)) return '';
+    if (sep === undefined || sep === null) return arr.join(',');
+    if (typeof sep !== 'string' && typeof sep !== 'number') {
+      return arr.join(',');
+    }
+    return arr.join(String(sep));
+  },
+
+  // Numeric
+  tonumber: Number,
+  toboolean: Boolean,
+  isnull: (v) => v === null || v === undefined,
+  coalesce: (...args) =>
+    args.find((v) => v !== null && v !== undefined) ?? null,
+  round: (n, dec) => {
+    const factor = 10 ** (dec === undefined ? 0 : Number(dec));
+    return Math.round(Number(n) * factor) / factor;
+  },
+  floor: (n) => Math.floor(Number(n)),
+  ceil: (n) => Math.ceil(Number(n)),
+  abs: (n) => Math.abs(Number(n)),
+  sqrt: (n) => Math.sqrt(Number(n)),
+  pow: (base, exp) => Math.pow(Number(base), Number(exp)),
+  min: (...args) =>
+    args.length === 0 ? Number.NaN : Math.min(...args.map(Number)),
+  max: (...args) =>
+    args.length === 0 ? Number.NaN : Math.max(...args.map(Number)),
+  log: (n) => Math.log(Number(n)),
+  log10: (n) => Math.log10(Number(n)),
+  exp: (n) => Math.exp(Number(n)),
+  sign: (n) => Math.sign(Number(n)),
+
+  // Array
+  sum: (arr) =>
+    Array.isArray(arr) ? arr.reduce((a, b) => a + Number(b), 0) : 0,
+  avg: (arr) =>
+    Array.isArray(arr) && arr.length > 0
+      ? arr.reduce((a, b) => a + Number(b), 0) / arr.length
+      : 0,
+  count: (arr) => (Array.isArray(arr) ? arr.length : 0),
+  first: (arr) => (Array.isArray(arr) ? arr[0] : undefined),
+  last: (arr) => (Array.isArray(arr) ? arr.at(-1) : undefined),
+  includes: (arr, val) => (Array.isArray(arr) ? arr.includes(val) : false),
+
+  // Conditional
+  if: (cond, ifTrue, ifFalse) => (cond ? ifTrue : ifFalse),
+};
+
+export const REFERENCE_BUILTIN_NAMES = Object.keys(BUILTINS);
 
 function isSafePropertyName(name: string): boolean {
   return name !== '__proto__';
@@ -164,7 +247,7 @@ referenceSemantics.addOperation<unknown>('referenceEval(ctx)', {
 
     if (calleeAST.type === 'Identifier') {
       const fnName = calleeAST.name.toLowerCase();
-      const builtinFn = BUILTIN_FUNCTIONS[fnName];
+      const builtinFn = BUILTINS[fnName];
       if (builtinFn) {
         return builtinFn(...getArgValues());
       }
@@ -378,4 +461,35 @@ export function referenceEvaluateWithContext(
   };
 
   return referenceEvaluate(trimmed, context);
+}
+
+function detectMinVersion(features: FormulaFeature[]): FormulaMinorVersion {
+  if (features.includes('context_token')) {
+    return '1.2';
+  }
+  if (features.length > 0) {
+    return '1.1';
+  }
+  return '1.0';
+}
+
+export function referenceParseFormula(expression: string): ParseResult {
+  const trimmed = expression.trim();
+  if (!trimmed) {
+    throw new Error('Empty expression');
+  }
+
+  const matchResult = grammar.match(trimmed);
+  if (matchResult.failed()) {
+    throw new Error(matchResult.message ?? 'Parse error');
+  }
+
+  const adapter = referenceSemantics(matchResult);
+  const ast = adapter.toAST() as ASTNode;
+  const dependencies = [...new Set(adapter.dependencies() as string[])];
+  const allFeatures = adapter.features() as FormulaFeature[];
+  const features = [...new Set(allFeatures)];
+  const minVersion: FormulaMinorVersion = detectMinVersion(features);
+
+  return { ast, dependencies, features, minVersion };
 }

@@ -2,6 +2,8 @@ import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import { grammar } from '../ohm/grammar';
 import { evaluate, evaluateWithContext, parseFormula } from '../ohm';
 import type { ASTNode } from '../ohm';
+import { BUILTIN_FUNCTIONS } from '../ohm/core/builtin-functions';
+import type { BinaryOp } from '../ohm/core/types';
 
 const MEMO_CAPACITY = 1000;
 
@@ -20,16 +22,6 @@ function thrownBy(run: () => unknown): unknown {
   throw new Error('expected the call to throw');
 }
 
-function attemptMutation(mutate: () => void): void {
-  try {
-    mutate();
-  } catch (error) {
-    if (!(error instanceof TypeError)) {
-      throw error;
-    }
-  }
-}
-
 function parseDistinctFormulas(prefix: string, count: number): void {
   for (let i = 1; i <= count; i++) {
     parseFormula(`${prefix} + ${i}`);
@@ -39,6 +31,7 @@ function parseDistinctFormulas(prefix: string, count: number): void {
 describe('parsed formula memo', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+    delete BUILTIN_FUNCTIONS.latebuiltin;
   });
 
   it('parses a formula once for repeated parseFormula, evaluate and evaluateWithContext calls', () => {
@@ -75,21 +68,19 @@ describe('parsed formula memo', () => {
     expect(parsesOf(expression)).toBe(1);
   });
 
-  it('keeps later calls unaffected when a caller mutates a returned parse result', () => {
+  it('returns a fresh, mutable parse result that later calls do not share', () => {
     const expression = 'memoLeft + memoRight';
     const first = parseFormula(expression);
 
-    attemptMutation(() => {
-      const ast = first.ast as ASTNode & { left: { name: string } };
-      ast.left.name = 'hacked';
-    });
-    attemptMutation(() => {
-      (first.ast as { type: string }).type = 'NullLiteral';
-    });
-    attemptMutation(() => first.dependencies.push('hacked'));
-    attemptMutation(() => first.features.push('nested_path'));
+    const firstAst = first.ast as BinaryOp & { left: { name: string } };
+    firstAst.left.name = 'hacked';
+    firstAst.op = '-';
+    first.dependencies.push('hacked');
+    first.features.push('nested_path');
+    const second = parseFormula(expression);
 
-    expect(parseFormula(expression)).toEqual({
+    expect(second.ast).not.toBe(first.ast);
+    expect(second).toEqual({
       ast: {
         type: 'BinaryOp',
         op: '+',
@@ -103,6 +94,39 @@ describe('parsed formula memo', () => {
     expect(
       evaluate(expression, { memoLeft: 1, memoRight: 2, hacked: 100 }),
     ).toBe(3);
+  });
+
+  it('returns a plain parse result: ast first, the same AST on every read, replaceable', () => {
+    const readFirst = parseFormula('memoShape * 2');
+    const replacedFirst = parseFormula('memoShape * 2');
+    const replacement: ASTNode = { type: 'NullLiteral' };
+
+    expect(Object.keys(readFirst)).toEqual([
+      'ast',
+      'dependencies',
+      'features',
+      'minVersion',
+    ]);
+    expect(readFirst.ast).toBe(readFirst.ast);
+    readFirst.ast = replacement;
+    replacedFirst.ast = replacement;
+    expect(readFirst.ast).toBe(replacement);
+    expect({ ...replacedFirst }).toEqual({
+      ast: replacement,
+      dependencies: ['memoShape'],
+      features: [],
+      minVersion: '1.0',
+    });
+  });
+
+  it('looks up built-in functions when a cached formula is evaluated', () => {
+    const expression = 'lateBuiltin(2)';
+
+    expect(() => evaluate(expression, {})).toThrow(
+      "'lateBuiltin' is not a function",
+    );
+    BUILTIN_FUNCTIONS.latebuiltin = (x) => (x as number) * 10;
+    expect(evaluate(expression, {})).toBe(20);
   });
 
   it(`keeps a formula while fewer than ${MEMO_CAPACITY} newer formulas were parsed`, () => {

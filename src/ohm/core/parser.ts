@@ -4,19 +4,11 @@ import {
   buildArrayContextTokens,
   buildPathReferences,
 } from './evaluation-context';
+import { createParseResult, type ParseResult } from './parse-result';
 import type { ASTNode } from './types';
-import type {
-  ArrayContext,
-  FormulaFeature,
-  FormulaMinorVersion,
-} from '../../types';
+import type { ArrayContext } from '../../types';
 
-export interface ParseResult {
-  ast: ASTNode;
-  dependencies: string[];
-  features: FormulaFeature[];
-  minVersion: FormulaMinorVersion;
-}
+export type { ParseResult } from './parse-result';
 
 function trimNonEmpty(expression: string): string {
   const trimmed = expression.trim();
@@ -39,14 +31,7 @@ function withoutFunctions(
 }
 
 export function parseFormula(expression: string): ParseResult {
-  const formula = getCompiledFormula(trimNonEmpty(expression));
-
-  return {
-    ast: formula.ast,
-    dependencies: [...formula.dependencies],
-    features: [...formula.features],
-    minVersion: formula.minVersion,
-  };
+  return createParseResult(getCompiledFormula(trimNonEmpty(expression)));
 }
 
 export function validateSyntax(
@@ -274,7 +259,7 @@ export function inferFormulaType(
   }
 
   try {
-    const { ast } = parseFormula(trimmed);
+    const { ast } = getCompiledFormula(trimmed);
     return inferTypeFromAST(ast, fieldTypes);
   } catch {
     return 'unknown';

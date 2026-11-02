@@ -17,6 +17,8 @@ export type EvaluationContext = Record<string, unknown>;
 
 export type FormulaEvaluator = (context: EvaluationContext) => unknown;
 
+type ArgumentsEvaluator = (context: EvaluationContext) => unknown[];
+
 type AnyFunction = (...args: unknown[]) => unknown;
 
 function isSafePropertyName(name: string): boolean {
@@ -197,9 +199,7 @@ function compileTernaryOp(node: TernaryOp): FormulaEvaluator {
     condition(context) ? consequent(context) : alternate(context);
 }
 
-function compileArguments(
-  nodes: ASTNode[],
-): (context: EvaluationContext) => unknown[] {
+function compileArguments(nodes: ASTNode[]): ArgumentsEvaluator {
   const evaluators = nodes.map(compileEvaluator);
   return (context) =>
     evaluators.map((evaluateArgument) => evaluateArgument(context));
@@ -210,16 +210,41 @@ function compileCall(node: CallExpression): FormulaEvaluator {
   const evaluateArguments = compileArguments(node.arguments);
 
   if (callee.type === 'Identifier') {
-    // The name is observable: `__proto__(1)` throws "builtinFn is not a function".
-    const builtinFn = BUILTIN_FUNCTIONS[callee.name.toLowerCase()];
-    if (builtinFn) {
-      return (context) => builtinFn(...evaluateArguments(context));
-    }
+    return compileNamedCall(callee.name, evaluateArguments);
   }
+  return compileValueCall(
+    compileEvaluator(callee),
+    'expression',
+    evaluateArguments,
+  );
+}
 
-  const evaluateCallee = compileEvaluator(callee);
-  const calleeName = callee.type === 'Identifier' ? callee.name : 'expression';
+function compileNamedCall(
+  name: string,
+  evaluateArguments: ArgumentsEvaluator,
+): FormulaEvaluator {
+  const builtinName = name.toLowerCase();
+  const callContextValue = compileValueCall(
+    compileContextLookup(name),
+    name,
+    evaluateArguments,
+  );
 
+  return (context) => {
+    // The name is observable: `__proto__(1)` throws "builtinFn is not a function".
+    const builtinFn = BUILTIN_FUNCTIONS[builtinName];
+    if (builtinFn) {
+      return builtinFn(...evaluateArguments(context));
+    }
+    return callContextValue(context);
+  };
+}
+
+function compileValueCall(
+  evaluateCallee: FormulaEvaluator,
+  calleeName: string,
+  evaluateArguments: ArgumentsEvaluator,
+): FormulaEvaluator {
   return (context) => {
     const fn = evaluateCallee(context);
     if (typeof fn === 'function') {

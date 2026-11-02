@@ -121,7 +121,9 @@ evaluateWithContext('price * (1 - ../discount)', {
 | `serializeAst` | Serialize AST back to expression string (inverse of `parseFormula`) |
 | `replaceDependencies` | Replace dependency paths in AST (returns new AST) |
 
-`parseFormula`, `evaluate` and `evaluateWithContext` parse each distinct expression once and remember up to 1,000 parsed formulas (first in, first out). The `ast` returned by `parseFormula` is shared and deeply frozen: build a new AST (as `replaceDependencies` does) instead of modifying it.
+`parseFormula`, `evaluate` and `evaluateWithContext` parse each distinct expression once and remember up to 1,000 parsed formulas (first in, first out). Every `parseFormula` call still returns its own result with a fresh copy of the AST, so callers may modify it.
+
+**Limitation:** an expression nested more deeply than roughly 600–750 levels (for example, a sum of about 750 terms; the exact limit depends on the runtime's stack) cannot be parsed and throws `RangeError: Maximum call stack size exceeded`. `evaluate` parses the whole expression before evaluating it, so the limit also applies to parts that evaluation would skip, such as `false && (…)`. In 0.10.0 the same limit applied to `parseFormula` and `evaluateWithContext`, while `evaluate` reached about 1,800 levels.
 
 ### Expression API
 
