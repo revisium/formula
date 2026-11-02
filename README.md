@@ -121,6 +121,8 @@ evaluateWithContext('price * (1 - ../discount)', {
 | `serializeAst` | Serialize AST back to expression string (inverse of `parseFormula`) |
 | `replaceDependencies` | Replace dependency paths in AST (returns new AST) |
 
+`parseFormula`, `evaluate` and `evaluateWithContext` parse each distinct expression once and remember up to 1,000 parsed formulas (first in, first out). The `ast` returned by `parseFormula` is shared and deeply frozen: build a new AST (as `replaceDependencies` does) instead of modifying it.
+
 ### Expression API
 
 | Function | Description |
