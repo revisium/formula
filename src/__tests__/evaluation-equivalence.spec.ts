@@ -69,6 +69,12 @@ const edgeContext = (): Record<string, unknown> => {
     text: 'Hello',
     custom: { valueOf: () => 42, toString: () => 'custom' },
     symbol: Symbol('s'),
+    shadowedMap: Object.assign([{ v: 1 }], { map: 0 }),
+    shadowedFlat: Object.assign([[1], [2]], { flat: 0 }),
+    shadowedReduce: Object.assign([1, 2], { reduce: 0 }),
+    shadowedJoin: Object.assign(['a'], { join: 0 }),
+    shadowedIncludes: Object.assign(['a'], { includes: 0 }),
+    shadowedAt: Object.assign(['a'], { at: 0 }),
     topLevelFunction: () => 'filtered out',
   };
 };
@@ -151,6 +157,17 @@ const EDGE_EXPRESSIONS = [
   'nested.record(foo())',
   'foo(nested.record(1))',
   'nested.record(nested.boom())',
+  'matrix[0]',
+  'matrix[-1]',
+  'items[1]',
+  'items[0]["v"]',
+  'shadowedMap.v',
+  'shadowedFlat[*]',
+  'sum(shadowedReduce)',
+  'avg(shadowedReduce)',
+  'join(shadowedJoin, "-")',
+  'includes(shadowedIncludes, "a")',
+  'last(shadowedAt)',
 ];
 
 describe('parsing equals the reference parser', () => {
@@ -212,6 +229,29 @@ describe('evaluation equals the reference Ohm semantics', () => {
 
     expect(comparison.referenceThrows).toBeGreaterThan(30);
     expect(comparison.mismatches).toEqual([]);
+  });
+
+  it('on an expression that is not a string', () => {
+    const notAString = 42 as unknown as string;
+    const emptyContext = (): Record<string, unknown> => ({});
+    const rootOnly = (): EvaluateContextOptions => ({ rootData: {} });
+
+    expect(
+      compareEvaluate([{ expression: notAString, createInput: emptyContext }])
+        .mismatches,
+    ).toEqual([]);
+    expect(
+      compareEvaluateWithContext([
+        { expression: notAString, createInput: rootOnly },
+      ]).mismatches,
+    ).toEqual([]);
+    expect(
+      compareWithReference(
+        [{ expression: notAString, createInput: () => undefined }],
+        parseFormula,
+        referenceParseFormula,
+      ).mismatches,
+    ).toEqual([]);
   });
 
   it('on invalid options passed to evaluateWithContext', () => {

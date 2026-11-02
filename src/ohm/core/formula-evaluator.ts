@@ -254,18 +254,20 @@ function compileValueCall(
   };
 }
 
+// Local names below match 0.10.0 because V8 puts them into TypeError messages,
+// e.g. "objVal.map is not a function" for an array whose own `map` is not a function.
 function compileMemberExpression(node: MemberExpression): FormulaEvaluator {
   const evaluateObject = compileEvaluator(node.object);
-  const { property } = node;
+  const propName = node.property;
 
   return (context) => {
-    const objectValue = evaluateObject(context);
-    if (Array.isArray(objectValue)) {
-      return objectValue.map(
-        (item) => (item as Record<string, unknown>)?.[property],
+    const objVal = evaluateObject(context);
+    if (Array.isArray(objVal)) {
+      return objVal.map(
+        (item) => (item as Record<string, unknown>)?.[propName],
       );
     }
-    return (objectValue as Record<string, unknown>)?.[property];
+    return (objVal as Record<string, unknown>)?.[propName];
   };
 }
 
@@ -273,17 +275,19 @@ function compileBracketedMemberExpression(
   node: BracketedMemberExpression,
 ): FormulaEvaluator {
   const evaluateObject = compileEvaluator(node.object);
-  const { property } = node;
+  const idx = node.property;
 
-  if (!isSafePropertyName(property)) {
+  if (!isSafePropertyName(idx)) {
     return (context) => {
       evaluateObject(context);
       return undefined;
     };
   }
 
-  return (context) =>
-    (evaluateObject(context) as Record<string, unknown>)?.[property];
+  return (context) => {
+    const objVal = evaluateObject(context);
+    return (objVal as Record<string, unknown>)?.[idx];
+  };
 }
 
 function compileIndexExpression(node: IndexExpression): FormulaEvaluator {
@@ -291,21 +295,19 @@ function compileIndexExpression(node: IndexExpression): FormulaEvaluator {
   const evaluateIndex = compileEvaluator(node.index);
 
   return (context) => {
-    const objectValue = evaluateObject(context);
-    const index = evaluateIndex(context);
-    if (typeof index === 'string') {
-      if (!isSafePropertyName(index)) {
+    const objVal = evaluateObject(context);
+    const idx = evaluateIndex(context);
+    if (typeof idx === 'string') {
+      if (!isSafePropertyName(idx)) {
         return undefined;
       }
-      return (objectValue as Record<string, unknown>)?.[index];
+      return (objVal as Record<string, unknown>)?.[idx];
     }
-    const numericIndex = index as number;
-    if (numericIndex < 0) {
-      return (objectValue as unknown[])?.[
-        (objectValue as unknown[]).length + numericIndex
-      ];
+    const numIdx = idx as number;
+    if (numIdx < 0) {
+      return (objVal as unknown[])?.[(objVal as unknown[]).length + numIdx];
     }
-    return (objectValue as unknown[])?.[numericIndex];
+    return (objVal as unknown[])?.[numIdx];
   };
 }
 
@@ -313,14 +315,14 @@ function compileWildcardExpression(node: WildcardExpression): FormulaEvaluator {
   const evaluateObject = compileEvaluator(node.object);
 
   return (context) => {
-    const objectValue = evaluateObject(context);
+    const objVal = evaluateObject(context);
     if (
-      Array.isArray(objectValue) &&
-      objectValue.length > 0 &&
-      Array.isArray(objectValue[0])
+      Array.isArray(objVal) &&
+      objVal.length > 0 &&
+      Array.isArray(objVal[0])
     ) {
-      return (objectValue as unknown[]).flat();
+      return (objVal as unknown[]).flat();
     }
-    return objectValue;
+    return objVal;
   };
 }

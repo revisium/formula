@@ -123,7 +123,7 @@ evaluateWithContext('price * (1 - ../discount)', {
 
 `parseFormula`, `evaluate` and `evaluateWithContext` parse each distinct expression once and remember up to 1,000 parsed formulas (first in, first out). Every `parseFormula` call still returns its own result with a fresh copy of the AST, so callers may modify it.
 
-**Limitation:** an expression nested more deeply than roughly 600–750 levels (for example, a sum of about 750 terms; the exact limit depends on the runtime's stack) cannot be parsed and throws `RangeError: Maximum call stack size exceeded`. `evaluate` parses the whole expression before evaluating it, so the limit also applies to parts that evaluation would skip, such as `false && (…)`. In 0.10.0 the same limit applied to `parseFormula` and `evaluateWithContext`, while `evaluate` reached about 1,800 levels.
+**Limitation:** an expression nested more deeply than roughly 600–750 levels (for example, a sum of about 750 terms; the exact limit depends on the runtime's stack) cannot be parsed and throws `RangeError: Maximum call stack size exceeded`. `evaluate` parses the whole expression before evaluating it, so the limit also applies to parts that evaluation would skip, such as `false && (…)`. In 0.10.0 the same limit applied to `parseFormula` and `evaluateWithContext`, while `evaluate` reached about 1,800 levels. Since schema-toolkit parses every formula with `parseFormula`, formulas this deep could not be stored in revisium schemas before this change either.
 
 ### Expression API
 

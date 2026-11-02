@@ -7,9 +7,11 @@ export interface EvaluationCase<I> {
 
 export type Evaluation<I> = (expression: string, input: I) => unknown;
 
-type ResultSnapshot =
-  | { readonly value: unknown }
-  | { readonly thrown: { readonly type: string; readonly message: string } };
+type ThrownSnapshot = {
+  readonly thrown: { readonly type: string; readonly message: string };
+};
+
+type ResultSnapshot = { readonly value: unknown } | ThrownSnapshot;
 
 export interface EvaluationOutcome {
   readonly result: ResultSnapshot;
@@ -47,6 +49,10 @@ function describeThrown(error: unknown): {
   return { type: typeof error, message: String(error) };
 }
 
+const HOLE = { hole: true };
+
+const ARRAY_INDEX = /^(?:0|[1-9]\d*)$/;
+
 function isIntrinsicPrototype(prototype: object): boolean {
   return (
     Object.hasOwn(prototype, 'constructor') &&
@@ -66,56 +72,79 @@ function primitiveOf(value: object): unknown {
   return undefined;
 }
 
-function snapshotOf(
-  value: unknown,
-  path = '$',
-  seen = new Map<object, string>(),
-): unknown {
-  if (typeof value === 'function') {
-    return { function: value.name };
-  }
-  if (typeof value === 'symbol') {
-    return { symbol: value.description };
-  }
-  if (typeof value !== 'object' || value === null) {
-    return value;
+class SnapshotWriter {
+  private readonly seen = new Map<unknown, string>();
+
+  of(value: unknown, path: string): unknown {
+    if (typeof value === 'symbol') {
+      return { symbol: value.description };
+    }
+    if (
+      value === null ||
+      (typeof value !== 'object' && typeof value !== 'function')
+    ) {
+      return value;
+    }
+
+    const seenAt = this.seen.get(value);
+    if (seenAt !== undefined) {
+      return { sameAs: seenAt };
+    }
+    this.seen.set(value, path);
+
+    if (typeof value === 'function') {
+      return { function: value.name };
+    }
+    if (Array.isArray(value)) {
+      return this.ofArray(value, path);
+    }
+    return {
+      kind: Object.prototype.toString.call(value),
+      primitive: primitiveOf(value),
+      prototype: this.prototypeOf(value, path),
+      entries: this.entriesOf(Object.entries(value), path),
+    };
   }
 
-  const seenAt = seen.get(value);
-  if (seenAt !== undefined) {
-    return { seen: seenAt };
+  private ofArray(value: unknown[], path: string): unknown {
+    return {
+      kind: 'Array',
+      prototype: this.prototypeOf(value, path),
+      length: value.length,
+      items: Array.from({ length: value.length }, (_, index) =>
+        index in value ? this.of(value[index], `${path}[${index}]`) : HOLE,
+      ),
+      properties: this.entriesOf(
+        Object.entries(value).filter(([key]) => !ARRAY_INDEX.test(key)),
+        path,
+      ),
+    };
   }
-  seen.set(value, path);
 
-  return {
-    kind: Object.prototype.toString.call(value),
-    primitive: primitiveOf(value),
-    prototype: prototypeSnapshotOf(value, path, seen),
-    entries: Object.entries(value).map(([key, child]) => [
+  private entriesOf(entries: [string, unknown][], path: string): unknown[] {
+    return entries.map(([key, child]) => [
       key,
-      snapshotOf(child, `${path}.${key}`, seen),
-    ]),
-  };
+      this.of(child, `${path}.${key}`),
+    ]);
+  }
+
+  private prototypeOf(value: object, path: string): unknown {
+    const prototype = Object.getPrototypeOf(value) as object | null;
+    if (prototype === null) {
+      return null;
+    }
+    if (isIntrinsicPrototype(prototype)) {
+      return (prototype as { constructor: { name: string } }).constructor.name;
+    }
+    return this.of(prototype, `${path}.[[Prototype]]`);
+  }
 }
 
-function prototypeSnapshotOf(
-  value: object,
-  path: string,
-  seen: Map<object, string>,
-): unknown {
-  const prototype = Object.getPrototypeOf(value) as object | null;
-  if (prototype === null) {
-    return null;
-  }
-  if (isIntrinsicPrototype(prototype)) {
-    return (prototype as { constructor: { name: string } }).constructor.name;
-  }
-  return snapshotOf(prototype, `${path}.[[Prototype]]`, seen);
-}
+type RawResult = { readonly value: unknown } | ThrownSnapshot;
 
-function resultOf(run: () => unknown): ResultSnapshot {
+function resultOf(run: () => unknown): RawResult {
   try {
-    return { value: snapshotOf(run()) };
+    return { value: run() };
   } catch (error) {
     return { thrown: describeThrown(error) };
   }
@@ -127,7 +156,16 @@ function evaluateOnOwnInput<I>(
 ): EvaluationOutcome {
   const input = testCase.createInput();
   const result = resultOf(() => evaluation(testCase.expression, input));
-  return { result, inputAfterwards: snapshotOf(input) };
+  const snapshots = new SnapshotWriter();
+  const inputAfterwards = snapshots.of(input, 'input');
+
+  if ('thrown' in result) {
+    return { result, inputAfterwards };
+  }
+  return {
+    result: { value: snapshots.of(result.value, 'result') },
+    inputAfterwards,
+  };
 }
 
 export function compareWithReference<I>(
