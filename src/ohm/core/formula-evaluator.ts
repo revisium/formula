@@ -1,0 +1,328 @@
+import { BUILTIN_FUNCTIONS } from './builtin-functions';
+import type {
+  ASTNode,
+  BinaryOp,
+  BracketedMemberExpression,
+  CallExpression,
+  IndexExpression,
+  MemberExpression,
+  RelativePath,
+  RootPath,
+  TernaryOp,
+  UnaryOp,
+  WildcardExpression,
+} from './types';
+
+export type EvaluationContext = Record<string, unknown>;
+
+export type FormulaEvaluator = (context: EvaluationContext) => unknown;
+
+type ArgumentsEvaluator = (context: EvaluationContext) => unknown[];
+
+type AnyFunction = (...args: unknown[]) => unknown;
+
+function isSafePropertyName(name: string): boolean {
+  return name !== '__proto__';
+}
+
+function getByPath(obj: unknown, path: string): unknown {
+  const parts = path.split('.');
+  let current = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+export function compileEvaluator(node: ASTNode): FormulaEvaluator {
+  switch (node.type) {
+    case 'NumberLiteral':
+    case 'StringLiteral':
+    case 'BooleanLiteral':
+      return compileConstant(node.value);
+    case 'NullLiteral':
+      return compileConstant(null);
+    case 'Identifier':
+    case 'ContextToken':
+      return compileContextLookup(node.name);
+    case 'BracketedIdentifier':
+      return compileBracketedIdentifier(node.name);
+    case 'RootPath':
+      return compileRootPath(node);
+    case 'RelativePath':
+      return compileRelativePath(node);
+    case 'UnaryOp':
+      return compileUnaryOp(node);
+    case 'BinaryOp':
+      return compileBinaryOp(node);
+    case 'TernaryOp':
+      return compileTernaryOp(node);
+    case 'CallExpression':
+      return compileCall(node);
+    case 'MemberExpression':
+      return compileMemberExpression(node);
+    case 'BracketedMemberExpression':
+      return compileBracketedMemberExpression(node);
+    case 'IndexExpression':
+      return compileIndexExpression(node);
+    case 'WildcardExpression':
+      return compileWildcardExpression(node);
+  }
+}
+
+function compileConstant(value: unknown): FormulaEvaluator {
+  return () => value;
+}
+
+function compileContextLookup(name: string): FormulaEvaluator {
+  return (context) => context[name];
+}
+
+function compileBracketedIdentifier(name: string): FormulaEvaluator {
+  if (!isSafePropertyName(name)) {
+    return () => undefined;
+  }
+  return (context) => context[name];
+}
+
+function compileRootPath(node: RootPath): FormulaEvaluator {
+  const fullPath = node.path;
+  const parts = fullPath.slice(1).split('.');
+  const firstPart = parts[0];
+
+  return (context) => {
+    if (fullPath in context) {
+      return context[fullPath];
+    }
+    if (!firstPart) {
+      return undefined;
+    }
+    let value = context['/' + firstPart];
+    for (let i = 1; i < parts.length; i++) {
+      if (value === null || value === undefined) {
+        return undefined;
+      }
+      const part = parts[i];
+      if (part) {
+        value = (value as Record<string, unknown>)[part];
+      }
+    }
+    return value;
+  };
+}
+
+function compileRelativePath(node: RelativePath): FormulaEvaluator {
+  const fullPath = node.path;
+  const pathAfterParents = fullPath.replace(/^(\.\.\/)+/, '');
+
+  return (context) => {
+    if (fullPath in context) {
+      return context[fullPath];
+    }
+    return getByPath(context, pathAfterParents);
+  };
+}
+
+function compileUnaryOp(node: UnaryOp): FormulaEvaluator {
+  const argument = compileEvaluator(node.argument);
+
+  switch (node.op) {
+    case '-':
+      return (context) => -(argument(context) as number);
+    case '!':
+      return (context) => !argument(context);
+    default:
+      throw new Error(`Unsupported unary operator: ${node.op}`);
+  }
+}
+
+function compileBinaryOp(node: BinaryOp): FormulaEvaluator {
+  const left = compileEvaluator(node.left);
+  const right = compileEvaluator(node.right);
+
+  switch (node.op) {
+    case '||':
+      return (context) => left(context) || right(context);
+    case '&&':
+      return (context) => left(context) && right(context);
+    case '==':
+      return (context) => left(context) == right(context);
+    case '!=':
+      return (context) => left(context) != right(context);
+    case '>=':
+      return (context) =>
+        (left(context) as number) >= (right(context) as number);
+    case '<=':
+      return (context) =>
+        (left(context) as number) <= (right(context) as number);
+    case '>':
+      return (context) =>
+        (left(context) as number) > (right(context) as number);
+    case '<':
+      return (context) =>
+        (left(context) as number) < (right(context) as number);
+    case '+':
+      return (context) => add(left(context), right(context));
+    case '-':
+      return (context) =>
+        (left(context) as number) - (right(context) as number);
+    case '*':
+      return (context) =>
+        (left(context) as number) * (right(context) as number);
+    case '/':
+      return (context) =>
+        (left(context) as number) / (right(context) as number);
+    case '%':
+      return (context) =>
+        (left(context) as number) % (right(context) as number);
+    default:
+      throw new Error(`Unsupported binary operator: ${node.op}`);
+  }
+}
+
+function add(left: unknown, right: unknown): unknown {
+  if (typeof left === 'string' || typeof right === 'string') {
+    return String(left) + String(right);
+  }
+  return (left as number) + (right as number);
+}
+
+function compileTernaryOp(node: TernaryOp): FormulaEvaluator {
+  const condition = compileEvaluator(node.condition);
+  const consequent = compileEvaluator(node.consequent);
+  const alternate = compileEvaluator(node.alternate);
+
+  return (context) =>
+    condition(context) ? consequent(context) : alternate(context);
+}
+
+function compileArguments(nodes: ASTNode[]): ArgumentsEvaluator {
+  const evaluators = nodes.map(compileEvaluator);
+  return (context) =>
+    evaluators.map((evaluateArgument) => evaluateArgument(context));
+}
+
+function compileCall(node: CallExpression): FormulaEvaluator {
+  const { callee } = node;
+  const evaluateArguments = compileArguments(node.arguments);
+
+  if (callee.type === 'Identifier') {
+    return compileNamedCall(callee.name, evaluateArguments);
+  }
+  return compileValueCall(
+    compileEvaluator(callee),
+    'expression',
+    evaluateArguments,
+  );
+}
+
+function compileNamedCall(
+  name: string,
+  evaluateArguments: ArgumentsEvaluator,
+): FormulaEvaluator {
+  const builtinName = name.toLowerCase();
+  const callContextValue = compileValueCall(
+    compileContextLookup(name),
+    name,
+    evaluateArguments,
+  );
+
+  return (context) => {
+    // The name is observable: `__proto__(1)` throws "builtinFn is not a function".
+    const builtinFn = BUILTIN_FUNCTIONS[builtinName];
+    if (builtinFn) {
+      return builtinFn(...evaluateArguments(context));
+    }
+    return callContextValue(context);
+  };
+}
+
+function compileValueCall(
+  evaluateCallee: FormulaEvaluator,
+  calleeName: string,
+  evaluateArguments: ArgumentsEvaluator,
+): FormulaEvaluator {
+  return (context) => {
+    const fn = evaluateCallee(context);
+    if (typeof fn === 'function') {
+      return (fn as AnyFunction)(...evaluateArguments(context));
+    }
+    throw new Error(`'${calleeName}' is not a function`);
+  };
+}
+
+// Local names below match 0.10.0 because V8 puts them into TypeError messages,
+// e.g. "objVal.map is not a function" for an array whose own `map` is not a function.
+function compileMemberExpression(node: MemberExpression): FormulaEvaluator {
+  const evaluateObject = compileEvaluator(node.object);
+  const propName = node.property;
+
+  return (context) => {
+    const objVal = evaluateObject(context);
+    if (Array.isArray(objVal)) {
+      return objVal.map(
+        (item) => (item as Record<string, unknown>)?.[propName],
+      );
+    }
+    return (objVal as Record<string, unknown>)?.[propName];
+  };
+}
+
+function compileBracketedMemberExpression(
+  node: BracketedMemberExpression,
+): FormulaEvaluator {
+  const evaluateObject = compileEvaluator(node.object);
+  const idx = node.property;
+
+  if (!isSafePropertyName(idx)) {
+    return (context) => {
+      evaluateObject(context);
+      return undefined;
+    };
+  }
+
+  return (context) => {
+    const objVal = evaluateObject(context);
+    return (objVal as Record<string, unknown>)?.[idx];
+  };
+}
+
+function compileIndexExpression(node: IndexExpression): FormulaEvaluator {
+  const evaluateObject = compileEvaluator(node.object);
+  const evaluateIndex = compileEvaluator(node.index);
+
+  return (context) => {
+    const objVal = evaluateObject(context);
+    const idx = evaluateIndex(context);
+    if (typeof idx === 'string') {
+      if (!isSafePropertyName(idx)) {
+        return undefined;
+      }
+      return (objVal as Record<string, unknown>)?.[idx];
+    }
+    const numIdx = idx as number;
+    if (numIdx < 0) {
+      return (objVal as unknown[])?.[(objVal as unknown[]).length + numIdx];
+    }
+    return (objVal as unknown[])?.[numIdx];
+  };
+}
+
+function compileWildcardExpression(node: WildcardExpression): FormulaEvaluator {
+  const evaluateObject = compileEvaluator(node.object);
+
+  return (context) => {
+    const objVal = evaluateObject(context);
+    if (
+      Array.isArray(objVal) &&
+      objVal.length > 0 &&
+      Array.isArray(objVal[0])
+    ) {
+      return (objVal as unknown[]).flat();
+    }
+    return objVal;
+  };
+}

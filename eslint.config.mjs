@@ -46,7 +46,10 @@ export default tseslint.config(
   },
   {
     // Ohm.js semantics use dynamic typing - these rules must be disabled
-    files: ['**/ohm/semantics/**/*.ts'],
+    files: [
+      '**/ohm/semantics/**/*.ts',
+      '**/__tests__/support/reference-evaluation.ts',
+    ],
     rules: {
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
@@ -54,13 +57,6 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-base-to-string': 'off',
-    },
-  },
-  {
-    // Ohm.js parser uses dynamic calls
-    files: ['**/ohm/core/parser.ts'],
-    rules: {
-      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
 );
